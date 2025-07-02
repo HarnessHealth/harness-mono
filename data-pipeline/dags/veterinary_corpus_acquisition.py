@@ -59,6 +59,7 @@ dag = DAG(
 def query_pubmed(**context):
     """Query PubMed for veterinary papers"""
     import requests
+    import os
     from datetime import datetime, timedelta
     
     # Get yesterday's date for incremental updates
@@ -74,6 +75,11 @@ def query_pubmed(**context):
         'mindate': yesterday,
         'maxdate': yesterday,
     }
+    
+    # Add API key if available for higher rate limits
+    api_key = os.getenv('NCBI_API_KEY')
+    if api_key:
+        params['api_key'] = api_key
     
     response = requests.get(base_url, params=params)
     data = response.json()
@@ -113,6 +119,7 @@ def query_europe_pmc(**context):
 def query_doaj(**context):
     """Query Directory of Open Access Journals for veterinary papers"""
     import requests
+    import os
     from datetime import datetime, timedelta
     
     # DOAJ API is free and doesn't require authentication
@@ -130,10 +137,16 @@ def query_doaj(**context):
         'page': 1,
     }
     
+    # Add headers for polite usage
+    headers = {}
+    crossref_email = os.getenv('CROSSREF_EMAIL')
+    if crossref_email:
+        headers['User-Agent'] = f'Harness/1.0 (mailto:{crossref_email})'
+    
     all_articles = []
     
     try:
-        response = requests.get(base_url, params=params)
+        response = requests.get(base_url, params=params, headers=headers)
         data = response.json()
         
         total_results = data.get('total', 0)
@@ -145,7 +158,7 @@ def query_doaj(**context):
         
         for page in range(2, total_pages + 1):
             params['page'] = page
-            response = requests.get(base_url, params=params)
+            response = requests.get(base_url, params=params, headers=headers)
             data = response.json()
             articles = data.get('results', [])
             all_articles.extend(articles)
