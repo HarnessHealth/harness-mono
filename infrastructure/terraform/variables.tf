@@ -25,13 +25,17 @@ variable "vpc_cidr" {
 variable "availability_zones" {
   description = "Availability zones"
   type        = list(string)
-  default     = ["us-east-1a", "us-east-1b", "us-east-1c"]
+  default     = ["us-east-1b", "us-east-1c", "us-east-1d"] # Avoid us-east-1a for GPU instances
 }
 
 variable "gpu_instance_type" {
   description = "EC2 instance type for GPU training"
   type        = string
-  default     = "p4d.24xlarge" # 8x A100 40GB GPUs
+  default     = "g4dn.xlarge" # 1x T4 GPU, 4 vCPUs - Good for development
+  # Other options:
+  # "g4dn.2xlarge"  # 1x T4 GPU, 8 vCPUs
+  # "p3.2xlarge"    # 1x V100 GPU, 8 vCPUs  
+  # "p4d.24xlarge"  # 8x A100 GPUs, 96 vCPUs (requires quota increase)
 }
 
 variable "airflow_instance_type" {

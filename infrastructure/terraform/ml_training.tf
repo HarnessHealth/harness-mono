@@ -10,6 +10,16 @@ resource "aws_launch_template" "gpu_training" {
     name = aws_iam_instance_profile.gpu_training.name
   }
 
+  # Use spot instances for cost savings with strict price limits
+  instance_market_options {
+    market_type = "spot"
+    spot_options {
+      max_price                      = "0.50" # Max $0.50/hour (g4dn.xlarge spot ~$0.30/hr)
+      spot_instance_type             = "one-time"
+      instance_interruption_behavior = "terminate"
+    }
+  }
+
   block_device_mappings {
     device_name = "/dev/sda1"
 
@@ -28,6 +38,9 @@ resource "aws_launch_template" "gpu_training" {
     project_name       = var.project_name
     aws_region         = var.aws_region
     wandb_api_key      = var.wandb_api_key
+    max_runtime_hours  = 100  # 100 hours * $0.50/hr = $50 max cost
+    cost_limit_dollars = 50
+    environment        = var.environment
   }))
 
   tag_specifications {

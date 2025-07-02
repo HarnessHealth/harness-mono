@@ -33,10 +33,28 @@ launch_training_instance() {
         exit 1
     fi
     
-    # Get subnet IDs
-    SUBNET_ID=$(terraform -chdir=infrastructure/terraform output -json private_subnet_ids | jq -r '.[0]' 2>/dev/null || echo "")
+    # Get subnet IDs from supported AZs (avoid us-east-1a due to capacity issues)
+    SUBNET_IDS=$(terraform -chdir=infrastructure/terraform output -json private_subnet_ids | jq -r '.[]' 2>/dev/null)
     
-    # Launch instance
+    # Find a subnet not in us-east-1a 
+    SUBNET_ID=""
+    for subnet in $SUBNET_IDS; do
+        AZ=$(aws ec2 describe-subnets --subnet-ids $subnet --query 'Subnets[0].AvailabilityZone' --output text --profile $AWS_PROFILE --region $AWS_REGION 2>/dev/null)
+        if [[ "$AZ" != "us-east-1a" ]]; then
+            SUBNET_ID=$subnet
+            echo "Selected subnet $SUBNET_ID in $AZ"
+            break
+        fi
+    done
+    
+    if [ -z "$SUBNET_ID" ]; then
+        echo -e "${RED}No suitable subnet found outside us-east-1a${NC}"
+        exit 1
+    fi
+    
+    # Launch instance with fallback to on-demand if spot fails
+    echo "Attempting to launch spot instance..."
+    
     INSTANCE_ID=$(aws ec2 run-instances \
         --launch-template LaunchTemplateId=$LAUNCH_TEMPLATE,Version=\$Latest \
         --subnet-id $SUBNET_ID \
@@ -44,7 +62,58 @@ launch_training_instance() {
         --query 'Instances[0].InstanceId' \
         --output text \
         --profile $AWS_PROFILE \
-        --region $AWS_REGION)
+        --region $AWS_REGION 2>/dev/null) || {
+        
+        echo -e "${YELLOW}Spot instance launch failed. Attempting on-demand instance...${NC}"
+        
+        # Get launch template without spot pricing
+        LAUNCH_TEMPLATE_ON_DEMAND=$(aws ec2 create-launch-template \
+            --launch-template-name "harness-training-ondemand-$(date +%s)" \
+            --launch-template-data '{
+                "ImageId": "'$(aws ec2 describe-launch-template-versions --launch-template-id $LAUNCH_TEMPLATE --versions \$Latest --query 'LaunchTemplateVersions[0].LaunchTemplateData.ImageId' --output text)'",
+                "InstanceType": "g4dn.xlarge",
+                "SecurityGroupIds": ["'$(aws ec2 describe-launch-template-versions --launch-template-id $LAUNCH_TEMPLATE --versions \$Latest --query 'LaunchTemplateVersions[0].LaunchTemplateData.SecurityGroupIds[0]' --output text)'"],
+                "IamInstanceProfile": {
+                    "Name": "'$(aws ec2 describe-launch-template-versions --launch-template-id $LAUNCH_TEMPLATE --versions \$Latest --query 'LaunchTemplateVersions[0].LaunchTemplateData.IamInstanceProfile.Name' --output text)'"
+                },
+                "UserData": "'$(aws ec2 describe-launch-template-versions --launch-template-id $LAUNCH_TEMPLATE --versions \$Latest --query 'LaunchTemplateVersions[0].LaunchTemplateData.UserData' --output text)'",
+                "BlockDeviceMappings": [
+                    {
+                        "DeviceName": "/dev/sda1",
+                        "Ebs": {
+                            "VolumeSize": 200,
+                            "VolumeType": "gp3",
+                            "Encrypted": true
+                        }
+                    }
+                ],
+                "TagSpecifications": [
+                    {
+                        "ResourceType": "instance",
+                        "Tags": [
+                            {"Key": "Name", "Value": "harness-training-ondemand-'$(date +%Y%m%d-%H%M%S)'"},
+                            {"Key": "Type", "Value": "training"},
+                            {"Key": "Billing", "Value": "on-demand"}
+                        ]
+                    }
+                ]
+            }' \
+            --query 'LaunchTemplate.LaunchTemplateId' \
+            --output text \
+            --profile $AWS_PROFILE \
+            --region $AWS_REGION)
+        
+        INSTANCE_ID=$(aws ec2 run-instances \
+            --launch-template LaunchTemplateId=$LAUNCH_TEMPLATE_ON_DEMAND,Version=\$Latest \
+            --subnet-id $SUBNET_ID \
+            --query 'Instances[0].InstanceId' \
+            --output text \
+            --profile $AWS_PROFILE \
+            --region $AWS_REGION)
+        
+        echo -e "${YELLOW}⚠️  Using on-demand instance (higher cost: ~\$1.20/hr vs \$0.30/hr spot)${NC}"
+        echo -e "${YELLOW}⚠️  Training will auto-shutdown at 42 hours to stay under \$50 limit${NC}"
+    }
     
     echo "Launched instance: $INSTANCE_ID"
     
@@ -202,11 +271,32 @@ main() {
             
             # Check if instance already exists
             if [ -f "$PROJECT_ROOT/.training-instance.json" ]; then
-                echo -e "${YELLOW}Training instance already exists${NC}"
                 INSTANCE_ID=$(jq -r '.instance_id' "$PROJECT_ROOT/.training-instance.json")
-                echo "Instance ID: $INSTANCE_ID"
-                monitor_training $INSTANCE_ID
-                exit 0
+                
+                # Validate instance ID is not empty
+                if [ -z "$INSTANCE_ID" ] || [ "$INSTANCE_ID" == "null" ] || [ "$INSTANCE_ID" == "" ]; then
+                    echo -e "${YELLOW}Found corrupted training instance file, removing...${NC}"
+                    rm "$PROJECT_ROOT/.training-instance.json"
+                else
+                    # Check if instance actually exists and is running
+                    INSTANCE_STATE=$(aws ec2 describe-instances \
+                        --instance-ids $INSTANCE_ID \
+                        --query 'Reservations[0].Instances[0].State.Name' \
+                        --output text \
+                        --profile $AWS_PROFILE \
+                        --region $AWS_REGION 2>/dev/null || echo "not-found")
+                    
+                    if [ "$INSTANCE_STATE" == "running" ] || [ "$INSTANCE_STATE" == "pending" ]; then
+                        echo -e "${YELLOW}Training instance already exists${NC}"
+                        echo "Instance ID: $INSTANCE_ID"
+                        echo "State: $INSTANCE_STATE"
+                        monitor_training $INSTANCE_ID
+                        exit 0
+                    else
+                        echo -e "${YELLOW}Previous instance ($INSTANCE_ID) is $INSTANCE_STATE, cleaning up...${NC}"
+                        rm "$PROJECT_ROOT/.training-instance.json"
+                    fi
+                fi
             fi
             
             # Launch new instance

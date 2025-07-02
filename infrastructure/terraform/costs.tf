@@ -2,14 +2,15 @@
 
 # Enable Cost Explorer
 resource "aws_ce_cost_category" "harness" {
-  name = "harness-cost-categories"
+  name         = "harness-cost-categories"
+  rule_version = "CostCategoryExpression.v1"
 
   rule {
     value = "Compute"
     rule {
       dimension {
-        key    = "SERVICE"
-        values = ["Amazon Elastic Compute Cloud - Compute", "Amazon EC2 Container Service", "AWS Lambda"]
+        key    = "SERVICE_CODE"
+        values = ["AmazonEC2", "AmazonECS", "AWSLambda"]
       }
     }
   }
@@ -18,8 +19,8 @@ resource "aws_ce_cost_category" "harness" {
     value = "Storage"
     rule {
       dimension {
-        key    = "SERVICE"
-        values = ["Amazon Simple Storage Service", "Amazon Elastic Block Store"]
+        key    = "SERVICE_CODE"
+        values = ["AmazonS3", "AmazonEBS"]
       }
     }
   }
@@ -28,8 +29,8 @@ resource "aws_ce_cost_category" "harness" {
     value = "Database"
     rule {
       dimension {
-        key    = "SERVICE"
-        values = ["Amazon Relational Database Service", "Amazon ElastiCache"]
+        key    = "SERVICE_CODE"
+        values = ["AmazonRDS", "AmazonElastiCache"]
       }
     }
   }
@@ -38,8 +39,8 @@ resource "aws_ce_cost_category" "harness" {
     value = "ML"
     rule {
       dimension {
-        key    = "SERVICE"
-        values = ["Amazon SageMaker", "Amazon Bedrock"]
+        key    = "SERVICE_CODE"
+        values = ["AmazonSageMaker", "AmazonBedrock"]
       }
     }
   }
@@ -47,6 +48,12 @@ resource "aws_ce_cost_category" "harness" {
   rule {
     value = "Other"
     type  = "REGULAR"
+    rule {
+      dimension {
+        key    = "SERVICE_CODE"
+        values = ["AmazonVPC", "AmazonRoute53", "AmazonCloudWatch"]
+      }
+    }
   }
 }
 
@@ -58,8 +65,9 @@ resource "aws_budgets_budget" "monthly" {
   limit_unit   = "USD"
   time_unit    = "MONTHLY"
 
-  cost_filters = {
-    TagKeyValue = "Project$Harness"
+  cost_filter {
+    name   = "TagKeyValue"
+    values = ["Project$Harness"]
   }
 
   notification {
@@ -95,8 +103,9 @@ resource "aws_budgets_budget" "sagemaker" {
   limit_unit   = "USD"
   time_unit    = "MONTHLY"
 
-  cost_filters = {
-    Service = "Amazon SageMaker"
+  cost_filter {
+    name   = "Service"
+    values = ["Amazon SageMaker"]
   }
 
   notification {
@@ -108,11 +117,45 @@ resource "aws_budgets_budget" "sagemaker" {
   }
 }
 
+# Training-specific budget (strict $50 limit)
+resource "aws_budgets_budget" "training" {
+  name         = "${var.project_name}-training-budget"
+  budget_type  = "COST"
+  limit_amount = "50"
+  limit_unit   = "USD"
+  time_unit    = "MONTHLY"
+
+  cost_filter {
+    name   = "Service"
+    values = ["Amazon Elastic Compute Cloud - Compute"]
+  }
+
+  cost_filter {
+    name   = "TagKeyValue"
+    values = ["Type$training"]
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 50
+    threshold_type            = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = [var.admin_email]
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 80
+    threshold_type            = "PERCENTAGE"
+    notification_type          = "FORECASTED"
+    subscriber_email_addresses = [var.admin_email]
+  }
+}
+
 # Cost Anomaly Detector
 resource "aws_ce_anomaly_monitor" "harness" {
-  name              = "${var.project_name}-anomaly-monitor"
-  monitor_type      = "CUSTOM"
-  monitor_frequency = "DAILY"
+  name         = "${var.project_name}-anomaly-monitor"
+  monitor_type = "CUSTOM"
 
   monitor_specification = jsonencode({
     Tags = {
@@ -126,6 +169,14 @@ resource "aws_ce_anomaly_subscription" "harness" {
   name      = "${var.project_name}-anomaly-subscription"
   frequency = "DAILY"
 
+  threshold_expression {
+    dimension {
+      key           = "ANOMALY_TOTAL_IMPACT_ABSOLUTE"
+      values        = ["100"]
+      match_options = ["GREATER_THAN_OR_EQUAL"]
+    }
+  }
+
   monitor_arn_list = [
     aws_ce_anomaly_monitor.harness.arn,
   ]
@@ -134,8 +185,6 @@ resource "aws_ce_anomaly_subscription" "harness" {
     type    = "EMAIL"
     address = var.admin_email
   }
-
-  threshold = 100.0
 }
 
 # IAM Role for Cost Explorer API Access
