@@ -9,6 +9,8 @@ import tempfile
 from typing import Dict, List, Optional
 from datetime import datetime
 import hashlib
+from urllib.parse import urljoin
+import time
 
 import boto3
 import requests
@@ -37,18 +39,19 @@ def crawl_pubmed_papers(max_papers=100):
     
     logger.info("Starting PubMed crawl...")
     
-    # Get yesterday's date for incremental updates
-    yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y/%m/%d')
+    # Get date range for historical crawl - 1 year back
+    one_year_ago = (datetime.now() - timedelta(days=365)).strftime('%Y/%m/%d')
+    today = datetime.now().strftime('%Y/%m/%d')
     
     base_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
     params = {
         'db': 'pubmed',
-        'term': '(veterinary[MeSH Terms] OR "animal diseases"[MeSH Terms] OR (dog OR canine OR cat OR feline OR equine OR bovine)) AND ("last 7 days"[PDat])',
+        'term': '(veterinary[MeSH Terms] OR "animal diseases"[MeSH Terms] OR (dog OR canine OR cat OR feline OR equine OR bovine))',
         'retmax': max_papers,
         'retmode': 'json',
         'datetype': 'pdat',
-        'mindate': yesterday,
-        'maxdate': 'now',
+        'mindate': one_year_ago,
+        'maxdate': today,
     }
     
     # Add API key if available for higher rate limits
@@ -109,12 +112,12 @@ def crawl_europe_pmc_papers(max_papers=50):
     
     logger.info("Starting Europe PMC crawl...")
     
-    yesterday = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+    one_year_ago = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
     today = datetime.now().strftime('%Y-%m-%d')
     
     base_url = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
     params = {
-        'query': f'SUBJECT:"veterinary" OR SUBJECT:"animal diseases" AND UPDATE_DATE:[{yesterday} TO {today}]',
+        'query': f'SUBJECT:"veterinary" OR SUBJECT:"animal diseases" AND UPDATE_DATE:[{one_year_ago} TO {today}]',
         'format': 'json',
         'pageSize': max_papers,
         'cursorMark': '*',
@@ -152,6 +155,171 @@ def crawl_europe_pmc_papers(max_papers=50):
         return []
 
 
+def get_pdf_urls(papers):
+    """Get PDF download URLs for papers"""
+    pdf_urls = []
+    
+    for paper in papers:
+        potential_urls = []
+        paper_id = paper.get('pmcid') or paper.get('pmid')
+        
+        # Try PMC ID first (most reliable for open access papers)
+        if paper.get('pmcid'):
+            pmcid = paper['pmcid']
+            if pmcid.startswith('PMC'):
+                # Multiple PMC URL formats to try
+                potential_urls.extend([
+                    f"https://www.ncbi.nlm.nih.gov/pmc/articles/{pmcid}/pdf/",
+                    f"https://europepmc.org/articles/{pmcid}?pdf=render",
+                    f"https://www.ncbi.nlm.nih.gov/pmc/articles/{pmcid}/pdf/{pmcid}.pdf"
+                ])
+        
+        # For PubMed papers with PMC ID available, check link existence first
+        if paper.get('pmid') and not paper.get('pmcid'):
+            pmid = paper['pmid']
+            # Try to find PMC version through elink API first
+            try:
+                link_url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi"
+                link_params = {
+                    'dbfrom': 'pubmed',
+                    'db': 'pmc',
+                    'id': pmid,
+                    'retmode': 'json'
+                }
+                if NCBI_API_KEY:
+                    link_params['api_key'] = NCBI_API_KEY
+                
+                response = requests.get(link_url, params=link_params, timeout=10)
+                if response.status_code == 200:
+                    link_data = response.json()
+                    linksets = link_data.get('linksets', [])
+                    for linkset in linksets:
+                        linksetdbs = linkset.get('linksetdbs', [])
+                        for linksetdb in linksetdbs:
+                            if linksetdb.get('dbto') == 'pmc':
+                                pmc_ids = linksetdb.get('links', [])
+                                if pmc_ids:
+                                    # Found PMC ID, use it
+                                    potential_urls.append(f"https://www.ncbi.nlm.nih.gov/pmc/articles/PMC{pmc_ids[0]}/pdf/")
+            except:
+                # Fallback if elink fails
+                pass
+        
+        # Only include papers with potential URLs
+        if potential_urls:
+            pdf_urls.append({
+                'paper_id': paper_id,
+                'pdf_urls': potential_urls,  # Multiple URLs to try
+                'paper': paper
+            })
+    
+    return pdf_urls
+
+
+def download_pdf(pdf_urls, paper_id):
+    """Download PDF from multiple potential URLs"""
+    for i, pdf_url in enumerate(pdf_urls):
+        try:
+            logger.info(f"Attempting PDF download for {paper_id} from {pdf_url} (attempt {i+1}/{len(pdf_urls)})")
+            
+            headers = {
+                'User-Agent': 'Harness/1.0 (mailto:admin@harness.health) Research Purpose'
+            }
+            
+            response = requests.get(pdf_url, headers=headers, timeout=60, stream=True)
+            
+            # Check if we got a PDF
+            content_type = response.headers.get('content-type', '')
+            if response.status_code == 200 and 'pdf' in content_type.lower():
+                logger.info(f"Successfully downloaded PDF for {paper_id} from {pdf_url}")
+                return response.content
+            else:
+                logger.warning(f"Failed attempt {i+1} for {paper_id}: {response.status_code}, content-type: {content_type}")
+                continue
+                
+        except Exception as e:
+            logger.warning(f"Error on attempt {i+1} for {paper_id}: {str(e)}")
+            continue
+    
+    logger.error(f"All PDF download attempts failed for {paper_id}")
+    return None
+
+
+def process_pdf_with_grobid(pdf_content, paper_id):
+    """Process PDF with GROBID to extract structured text"""
+    try:
+        logger.info(f"Processing PDF with GROBID for {paper_id}")
+        
+        # GROBID endpoint for processing full text
+        grobid_url = f"{GROBID_ENDPOINT}/api/processFulltextDocument"
+        
+        files = {
+            'input': (f'{paper_id}.pdf', pdf_content, 'application/pdf')
+        }
+        
+        data = {
+            'generateIDs': '1',
+            'consolidateHeader': '1',
+            'consolidateCitations': '1',
+            'includeRawAffiliations': '1',
+            'includeRawCitations': '1',
+            'segmentSentences': '1'
+        }
+        
+        response = requests.post(grobid_url, files=files, data=data, timeout=120)
+        
+        if response.status_code == 200:
+            # GROBID returns TEI-XML, we'll store it for later processing
+            tei_xml = response.text
+            logger.info(f"Successfully processed PDF for {paper_id}, got {len(tei_xml)} chars of TEI-XML")
+            return tei_xml
+        else:
+            logger.error(f"GROBID processing failed for {paper_id}: {response.status_code}")
+            return None
+            
+    except Exception as e:
+        logger.error(f"Error processing PDF with GROBID for {paper_id}: {str(e)}")
+        return None
+
+
+def extract_text_from_tei(tei_xml):
+    """Extract clean text from GROBID TEI-XML output"""
+    try:
+        # For now, we'll do basic text extraction
+        # In production, you'd want proper XML parsing with lxml
+        import re
+        
+        # Remove XML tags but preserve text content
+        text = re.sub(r'<[^>]+>', ' ', tei_xml)
+        
+        # Clean up whitespace
+        text = re.sub(r'\s+', ' ', text)
+        text = text.strip()
+        
+        # Extract main sections if possible
+        sections = {}
+        
+        # Try to extract abstract
+        abstract_match = re.search(r'<abstract[^>]*>(.*?)</abstract>', tei_xml, re.DOTALL | re.IGNORECASE)
+        if abstract_match:
+            sections['abstract'] = re.sub(r'<[^>]+>', ' ', abstract_match.group(1)).strip()
+        
+        # Try to extract body text
+        body_match = re.search(r'<body[^>]*>(.*?)</body>', tei_xml, re.DOTALL | re.IGNORECASE)
+        if body_match:
+            sections['body'] = re.sub(r'<[^>]+>', ' ', body_match.group(1)).strip()
+        
+        return {
+            'full_text': text,
+            'sections': sections,
+            'tei_xml': tei_xml  # Keep raw TEI for advanced processing later
+        }
+        
+    except Exception as e:
+        logger.error(f"Error extracting text from TEI: {str(e)}")
+        return None
+
+
 def save_papers_to_s3(papers, source_name):
     """Save paper metadata to S3"""
     if not papers:
@@ -185,6 +353,125 @@ def save_papers_to_s3(papers, source_name):
         logger.error(f"Error saving papers to S3: {str(e)}")
 
 
+def save_full_text_to_s3(paper_id, paper_metadata, full_text_data, source_name):
+    """Save full text content to S3"""
+    try:
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        key = f"fulltext/{source_name}/{paper_id}_{timestamp}.json"
+        
+        content = {
+            'paper_id': paper_id,
+            'processed_at': datetime.utcnow().isoformat(),
+            'source': source_name,
+            'metadata': paper_metadata,
+            'full_text': full_text_data['full_text'],
+            'sections': full_text_data['sections'],
+            'word_count': len(full_text_data['full_text'].split()) if full_text_data.get('full_text') else 0
+        }
+        
+        # Also save raw TEI-XML separately for advanced processing
+        if full_text_data.get('tei_xml'):
+            tei_key = f"tei/{source_name}/{paper_id}_{timestamp}.xml"
+            s3_client.put_object(
+                Bucket=S3_CORPUS_BUCKET,
+                Key=tei_key,
+                Body=full_text_data['tei_xml'],
+                ContentType='application/xml',
+                Metadata={
+                    'paper_id': paper_id,
+                    'source': source_name,
+                    'processed_at': timestamp
+                }
+            )
+        
+        # Save structured full text JSON
+        s3_client.put_object(
+            Bucket=S3_CORPUS_BUCKET,
+            Key=key,
+            Body=json.dumps(content, indent=2),
+            ContentType='application/json',
+            Metadata={
+                'paper_id': paper_id,
+                'source': source_name,
+                'word_count': str(content['word_count']),
+                'processed_at': timestamp
+            }
+        )
+        
+        logger.info(f"Saved full text for {paper_id} to s3://{S3_CORPUS_BUCKET}/{key}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error saving full text for {paper_id} to S3: {str(e)}")
+        return False
+
+
+def process_papers_for_full_text(papers, source_name, max_pdfs=10):
+    """Process papers to download PDFs and extract full text"""
+    processed_count = 0
+    failed_count = 0
+    
+    # Get PDF URLs for papers
+    pdf_urls = get_pdf_urls(papers)
+    logger.info(f"Found {len(pdf_urls)} papers with potential PDF URLs")
+    
+    # Limit processing to avoid Lambda timeout
+    pdf_urls = pdf_urls[:max_pdfs]
+    
+    for pdf_info in pdf_urls:
+        try:
+            paper_id = pdf_info['paper_id']
+            pdf_urls_list = pdf_info['pdf_urls']
+            paper_metadata = pdf_info['paper']
+            
+            # Download PDF (try multiple URLs)
+            pdf_content = download_pdf(pdf_urls_list, paper_id)
+            if not pdf_content:
+                failed_count += 1
+                continue
+            
+            # Check if GROBID is available (for now, skip GROBID if not configured)
+            if GROBID_ENDPOINT and GROBID_ENDPOINT != 'http://grobid.harness.internal:8070':
+                # Process with GROBID
+                tei_xml = process_pdf_with_grobid(pdf_content, paper_id)
+                if tei_xml:
+                    full_text_data = extract_text_from_tei(tei_xml)
+                    if full_text_data:
+                        success = save_full_text_to_s3(paper_id, paper_metadata, full_text_data, source_name)
+                        if success:
+                            processed_count += 1
+                        else:
+                            failed_count += 1
+                    else:
+                        failed_count += 1
+                else:
+                    failed_count += 1
+            else:
+                # For now, just save the PDF info without GROBID processing
+                # We'll enhance this to use basic text extraction later
+                logger.info(f"GROBID not available, saving PDF metadata for {paper_id}")
+                full_text_data = {
+                    'full_text': f"PDF downloaded for {paper_id} ({len(pdf_content)} bytes)",
+                    'sections': {'note': 'PDF downloaded but not processed with GROBID'},
+                    'pdf_size': len(pdf_content)
+                }
+                success = save_full_text_to_s3(paper_id, paper_metadata, full_text_data, source_name)
+                if success:
+                    processed_count += 1
+                else:
+                    failed_count += 1
+            
+            # Small delay to be respectful to servers
+            time.sleep(1)
+            
+        except Exception as e:
+            logger.error(f"Error processing PDF for {paper_id}: {str(e)}")
+            failed_count += 1
+    
+    logger.info(f"PDF processing complete: {processed_count} successful, {failed_count} failed")
+    return processed_count, failed_count
+
+
 def handler(event, context):
     """Main Lambda handler for paper crawling and processing"""
     logger.info(f"Received event: {json.dumps(event)}")
@@ -209,12 +496,26 @@ def handler(event, context):
                 if pubmed_papers:
                     save_papers_to_s3(pubmed_papers, 'pubmed')
                     results['crawled_papers'] += len(pubmed_papers)
+                    
+                    # Process PDFs if requested
+                    if event.get('process_pdfs', False):
+                        max_pdfs = event.get('max_pdfs', 5)
+                        processed, failed = process_papers_for_full_text(pubmed_papers, 'pubmed', max_pdfs)
+                        results['processed_documents'] += processed
+                        results['errors'].extend([f"Failed to process {failed} PDFs from PubMed"] if failed > 0 else [])
             
             if 'europe_pmc' in sources:
                 emc_papers = crawl_europe_pmc_papers(max_papers=event.get('max_papers', 50))
                 if emc_papers:
                     save_papers_to_s3(emc_papers, 'europe_pmc')
                     results['crawled_papers'] += len(emc_papers)
+                    
+                    # Process PDFs if requested
+                    if event.get('process_pdfs', False):
+                        max_pdfs = event.get('max_pdfs', 5)
+                        processed, failed = process_papers_for_full_text(emc_papers, 'europe_pmc', max_pdfs)
+                        results['processed_documents'] += processed
+                        results['errors'].extend([f"Failed to process {failed} PDFs from Europe PMC"] if failed > 0 else [])
         
         # EventBridge scheduled crawl
         elif event.get('source') == 'aws.events':
@@ -275,7 +576,9 @@ if __name__ == "__main__":
         'action': 'crawl',
         'test': True,
         'sources': ['pubmed', 'europe_pmc'],
-        'max_papers': 10
+        'max_papers': 10,
+        'process_pdfs': True,
+        'max_pdfs': 3
     }
     
     result = handler(test_event, None)
