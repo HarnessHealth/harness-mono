@@ -1,0 +1,33 @@
+{
+  "model_name": "microsoft/DialoGPT-medium",
+  "max_length": 512,
+  
+  "lora_r": 16,
+  "lora_alpha": 32,
+  "lora_dropout": 0.1,
+  "lora_target_modules": ["c_attn", "c_proj"],
+  
+  "num_epochs": 3,
+  "train_batch_size": 1,
+  "eval_batch_size": 1,
+  "gradient_accumulation_steps": 32,
+  "learning_rate": 2e-5,
+  "warmup_steps": 100,
+  "logging_steps": 10,
+  "eval_steps": 100,
+  "save_steps": 500,
+  "early_stopping_patience": 3,
+  
+  "s3_bucket": "harness-training-data-development",
+  "training_prefix": "veterinary_qa_v1/train/",
+  "validation_prefix": "veterinary_qa_v1/val/",
+  "streaming_batch_size": 50,
+  
+  "output_dir": "./models/medgemma-local-v1",
+  "s3_model_output": "local-experiments/medgemma-local-v1",
+  
+  "use_wandb": false,
+  "use_mlflow": false,
+  "wandb_project": "harness-local-training",
+  "mlflow_experiment": "local-medgemma"
+}
