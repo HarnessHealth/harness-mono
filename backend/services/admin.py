@@ -170,7 +170,7 @@ class AdminService:
                 return PaperStats(**cached_stats)
             
             # Get real data from S3 bucket
-            bucket_name = "harness-veterinary-corpus-development"
+            bucket_name = self.papers_bucket
             papers_by_source = {}
             total_papers = 0
             last_24h_acquired = 0
@@ -271,7 +271,7 @@ class AdminService:
         """Get paper source status from S3 and Lambda function logs"""
         try:
             # Get real data from S3 bucket
-            bucket_name = "harness-veterinary-corpus-development"
+            bucket_name = self.papers_bucket
             source_stats = {}
             
             # List all metadata files in S3

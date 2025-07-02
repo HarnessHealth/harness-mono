@@ -146,7 +146,7 @@ resource "aws_codebuild_project" "backend" {
 
   source {
     type = "S3"
-    location = "${aws_s3_bucket.codebuild_cache.bucket}/source/source.zip"
+    location = "${aws_s3_bucket.codebuild_cache.bucket}/source/backend-source.zip"
     buildspec = file("${path.module}/buildspecs/backend-buildspec.yml")
   }
 
@@ -203,7 +203,7 @@ resource "aws_codebuild_project" "lambda" {
 
   source {
     type = "S3"
-    location = "${aws_s3_bucket.codebuild_cache.bucket}/source/source.zip"
+    location = "${aws_s3_bucket.codebuild_cache.bucket}/source/lambda-source.zip"
     buildspec = file("${path.module}/buildspecs/lambda-buildspec.yml")
   }
 
@@ -216,6 +216,73 @@ resource "aws_codebuild_project" "lambda" {
 
   tags = {
     Name = "${var.project_name}-lambda-build"
+  }
+}
+
+# CodeBuild project for admin frontend
+resource "aws_codebuild_project" "admin" {
+  name          = "${var.project_name}-admin-build"
+  description   = "Build admin frontend Docker image"
+  service_role  = aws_iam_role.codebuild.arn
+
+  artifacts {
+    type = "NO_ARTIFACTS"
+  }
+
+  cache {
+    type     = "S3"
+    location = "${aws_s3_bucket.codebuild_cache.bucket}/admin"
+    modes    = ["LOCAL_DOCKER_LAYER_CACHE", "LOCAL_SOURCE_CACHE"]
+  }
+
+  environment {
+    compute_type                = "BUILD_GENERAL1_SMALL"
+    image                      = "aws/codebuild/standard:7.0"
+    type                       = "LINUX_CONTAINER"
+    image_pull_credentials_type = "CODEBUILD"
+    privileged_mode            = true
+
+    environment_variable {
+      name  = "AWS_DEFAULT_REGION"
+      value = var.aws_region
+    }
+
+    environment_variable {
+      name  = "AWS_ACCOUNT_ID"
+      value = data.aws_caller_identity.current.account_id
+    }
+
+    environment_variable {
+      name  = "ECR_REPOSITORY_URI"
+      value = aws_ecr_repository.admin.repository_url
+    }
+
+    environment_variable {
+      name  = "IMAGE_TAG"
+      value = "latest"
+    }
+
+    environment_variable {
+      name  = "VITE_API_URL"
+      value = "https://api.${var.domain_name}"
+    }
+  }
+
+  source {
+    type = "S3"
+    location = "${aws_s3_bucket.codebuild_cache.bucket}/source/admin-source.zip"
+    buildspec = file("${path.module}/buildspecs/admin-buildspec.yml")
+  }
+
+  logs_config {
+    cloudwatch_logs {
+      group_name  = "/aws/codebuild/${var.project_name}-admin"
+      stream_name = ""
+    }
+  }
+
+  tags = {
+    Name = "${var.project_name}-admin-build"
   }
 }
 
@@ -241,7 +308,8 @@ resource "aws_cloudwatch_event_rule" "codebuild_status" {
     detail = {
       project-name = [
         aws_codebuild_project.backend.name,
-        aws_codebuild_project.lambda.name
+        aws_codebuild_project.lambda.name,
+        aws_codebuild_project.admin.name
       ]
       build-status = ["FAILED", "SUCCEEDED"]
     }
@@ -263,4 +331,9 @@ output "codebuild_backend_project" {
 output "codebuild_lambda_project" {
   description = "CodeBuild project name for Lambda functions"
   value       = aws_codebuild_project.lambda.name
+}
+
+output "codebuild_admin_project" {
+  description = "CodeBuild project name for admin frontend"
+  value       = aws_codebuild_project.admin.name
 }

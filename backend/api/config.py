@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     AWS_ENVIRONMENT: str = "development"  # development, staging, production
     S3_BUCKET_NAME: str = "harness-veterinary-corpus"
     S3_MODELS_BUCKET: str = "harness-models"
-    S3_PAPERS_BUCKET: str = "harness-papers"
+    S3_PAPERS_BUCKET: str = "harness-veterinary-corpus" if AWS_ENVIRONMENT == "production" else f"harness-veterinary-corpus-{AWS_ENVIRONMENT}"
 
     # Weaviate
     WEAVIATE_URL: str = "http://localhost:8080"
