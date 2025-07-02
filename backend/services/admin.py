@@ -162,113 +162,240 @@ class AdminService:
     
     # Paper Acquisition
     async def get_paper_stats(self) -> PaperStats:
-        """Get paper acquisition statistics"""
-        # In production, query from database
-        # For now, return demo data
-        stats = PaperStats(
-            total_papers=24567,
-            papers_by_source={
-                "PubMed": 8234,
-                "Europe PMC": 6789,
-                "DOAJ": 3456,
-                "CrossRef": 2345,
-                "bioRxiv": 1890,
-                "arXiv": 1234,
-                "IVIS": 619
-            },
-            papers_by_status={
-                "processed": 22345,
-                "processing": 1234,
-                "failed": 456,
-                "pending": 532
-            },
-            processing_queue_size=1766,
-            failed_papers=456,
-            last_24h_acquired=234,
-            last_7d_acquired=1567,
-            storage_used_gb=45.8,
-            embeddings_generated=22345
-        )
-        
-        # Try to get real stats from cache
-        cached_stats = await cache_service.get("paper_stats")
-        if cached_stats:
-            stats = PaperStats(**cached_stats)
-        
-        return stats
+        """Get paper acquisition statistics from S3 bucket"""
+        try:
+            # Try to get real stats from cache first
+            cached_stats = await cache_service.get("paper_stats")
+            if cached_stats:
+                return PaperStats(**cached_stats)
+            
+            # Get real data from S3 bucket
+            bucket_name = "harness-veterinary-corpus-development"
+            papers_by_source = {}
+            total_papers = 0
+            last_24h_acquired = 0
+            last_7d_acquired = 0
+            storage_used_gb = 0
+            
+            now = datetime.utcnow()
+            cutoff_24h = now - timedelta(hours=24)
+            cutoff_7d = now - timedelta(days=7)
+            
+            # List all metadata files in S3
+            response = s3_client.list_objects_v2(
+                Bucket=bucket_name,
+                Prefix="metadata/"
+            )
+            
+            if 'Contents' in response:
+                for obj in response['Contents']:
+                    key = obj['Key']
+                    size_mb = obj['Size'] / (1024 * 1024)
+                    storage_used_gb += size_mb / 1024
+                    
+                    # Extract source from path (e.g., metadata/pubmed/file.json)
+                    path_parts = key.split('/')
+                    if len(path_parts) >= 3:
+                        source = path_parts[1]
+                        
+                        # Get the file and count papers
+                        try:
+                            file_obj = s3_client.get_object(Bucket=bucket_name, Key=key)
+                            content = json.loads(file_obj['Body'].read().decode('utf-8'))
+                            
+                            if 'papers' in content:
+                                paper_count = len(content['papers'])
+                                total_papers += paper_count
+                                papers_by_source[source] = papers_by_source.get(source, 0) + paper_count
+                                
+                                # Check if crawled in last 24h/7d
+                                if 'crawled_at' in content:
+                                    crawled_time = datetime.fromisoformat(content['crawled_at'].replace('Z', '+00:00'))
+                                    if crawled_time > cutoff_24h:
+                                        last_24h_acquired += paper_count
+                                    if crawled_time > cutoff_7d:
+                                        last_7d_acquired += paper_count
+                                        
+                        except Exception as e:
+                            print(f"Error reading S3 file {key}: {e}")
+                            continue
+            
+            # Format source names properly
+            formatted_sources = {}
+            for source, count in papers_by_source.items():
+                if source == "pubmed":
+                    formatted_sources["PubMed"] = count
+                elif source == "europe_pmc":
+                    formatted_sources["Europe PMC"] = count
+                else:
+                    formatted_sources[source.title()] = count
+            
+            stats = PaperStats(
+                total_papers=total_papers,
+                papers_by_source=formatted_sources,
+                papers_by_status={
+                    "processed": total_papers,
+                    "processing": 0,
+                    "failed": 0,
+                    "pending": 0
+                },
+                processing_queue_size=0,
+                failed_papers=0,
+                last_24h_acquired=last_24h_acquired,
+                last_7d_acquired=last_7d_acquired,
+                storage_used_gb=round(storage_used_gb, 2),
+                embeddings_generated=0  # Would need to check vector DB
+            )
+            
+            # Cache the stats for 5 minutes
+            await cache_service.set("paper_stats", stats.dict(), expire=300)
+            
+            return stats
+            
+        except Exception as e:
+            print(f"Error getting paper stats from S3: {e}")
+            # Fallback to demo data if S3 fails
+            return PaperStats(
+                total_papers=0,
+                papers_by_source={},
+                papers_by_status={"processed": 0, "processing": 0, "failed": 0, "pending": 0},
+                processing_queue_size=0,
+                failed_papers=0,
+                last_24h_acquired=0,
+                last_7d_acquired=0,
+                storage_used_gb=0.0,
+                embeddings_generated=0
+            )
     
     async def get_paper_sources(self) -> List[PaperSource]:
-        """Get paper source status"""
-        sources = [
-            PaperSource(
-                name="PubMed",
-                enabled=True,
-                last_crawl=datetime.utcnow() - timedelta(hours=2),
-                last_success=datetime.utcnow() - timedelta(hours=2),
-                papers_acquired=8234,
-                error_count=0,
-                api_status="healthy",
-                rate_limit_remaining=950
-            ),
-            PaperSource(
-                name="Europe PMC",
-                enabled=True,
-                last_crawl=datetime.utcnow() - timedelta(hours=3),
-                last_success=datetime.utcnow() - timedelta(hours=3),
-                papers_acquired=6789,
-                error_count=0,
-                api_status="healthy"
-            ),
-            PaperSource(
-                name="DOAJ",
-                enabled=True,
-                last_crawl=datetime.utcnow() - timedelta(hours=1),
-                last_success=datetime.utcnow() - timedelta(hours=1),
-                papers_acquired=3456,
-                error_count=2,
-                api_status="healthy"
-            ),
-            PaperSource(
-                name="CrossRef",
-                enabled=True,
-                last_crawl=datetime.utcnow() - timedelta(hours=4),
-                last_success=datetime.utcnow() - timedelta(hours=4),
-                papers_acquired=2345,
-                error_count=0,
-                api_status="healthy"
-            ),
-            PaperSource(
-                name="bioRxiv",
-                enabled=True,
-                last_crawl=datetime.utcnow() - timedelta(days=1),
-                last_success=datetime.utcnow() - timedelta(days=1),
-                papers_acquired=1890,
-                error_count=5,
-                api_status="degraded",
-                error_message="Rate limit exceeded"
-            ),
-            PaperSource(
-                name="arXiv",
-                enabled=True,
-                last_crawl=datetime.utcnow() - timedelta(hours=6),
-                last_success=datetime.utcnow() - timedelta(hours=6),
-                papers_acquired=1234,
-                error_count=0,
-                api_status="healthy"
-            ),
-            PaperSource(
-                name="IVIS",
-                enabled=False,
-                last_crawl=datetime.utcnow() - timedelta(days=7),
-                last_success=datetime.utcnow() - timedelta(days=7),
-                papers_acquired=619,
-                error_count=10,
-                api_status="down",
-                error_message="Authentication failed"
+        """Get paper source status from S3 and Lambda function logs"""
+        try:
+            # Get real data from S3 bucket
+            bucket_name = "harness-veterinary-corpus-development"
+            source_stats = {}
+            
+            # List all metadata files in S3
+            response = s3_client.list_objects_v2(
+                Bucket=bucket_name,
+                Prefix="metadata/"
             )
-        ]
-        
-        return sources
+            
+            if 'Contents' in response:
+                for obj in response['Contents']:
+                    key = obj['Key']
+                    last_modified = obj['LastModified']
+                    
+                    # Extract source from path (e.g., metadata/pubmed/file.json)
+                    path_parts = key.split('/')
+                    if len(path_parts) >= 3:
+                        source = path_parts[1]
+                        
+                        if source not in source_stats:
+                            source_stats[source] = {
+                                'papers_acquired': 0,
+                                'last_crawl': last_modified,
+                                'last_success': last_modified,
+                                'error_count': 0
+                            }
+                        
+                        # Get the file and count papers
+                        try:
+                            file_obj = s3_client.get_object(Bucket=bucket_name, Key=key)
+                            content = json.loads(file_obj['Body'].read().decode('utf-8'))
+                            
+                            if 'papers' in content:
+                                paper_count = len(content['papers'])
+                                source_stats[source]['papers_acquired'] += paper_count
+                                
+                                # Update last crawl time
+                                if last_modified > source_stats[source]['last_crawl']:
+                                    source_stats[source]['last_crawl'] = last_modified
+                                    source_stats[source]['last_success'] = last_modified
+                                    
+                        except Exception as e:
+                            if source in source_stats:
+                                source_stats[source]['error_count'] += 1
+            
+            # Build source objects
+            sources = []
+            
+            # Active sources that we've crawled
+            for source_key, stats in source_stats.items():
+                if source_key == "pubmed":
+                    name = "PubMed"
+                    rate_limit_remaining = 950  # With API key
+                elif source_key == "europe_pmc":
+                    name = "Europe PMC"
+                    rate_limit_remaining = None
+                else:
+                    name = source_key.title()
+                    rate_limit_remaining = None
+                
+                api_status = "healthy" if stats['error_count'] == 0 else "degraded"
+                error_message = f"{stats['error_count']} crawling errors" if stats['error_count'] > 0 else None
+                
+                sources.append(PaperSource(
+                    name=name,
+                    enabled=True,
+                    last_crawl=stats['last_crawl'],
+                    last_success=stats['last_success'] if stats['error_count'] == 0 else None,
+                    papers_acquired=stats['papers_acquired'],
+                    error_count=stats['error_count'],
+                    api_status=api_status,
+                    rate_limit_remaining=rate_limit_remaining,
+                    error_message=error_message
+                ))
+            
+            # Add inactive sources that are configured but not used yet
+            active_sources = {s.name for s in sources}
+            inactive_sources = [
+                ("DOAJ", "Planned - veterinary journal indexing"),
+                ("CrossRef", "Planned - DOI-based discovery"),
+                ("bioRxiv", "Planned - preprint server"),
+                ("arXiv", "Planned - scientific preprints"),
+                ("IVIS", "Planned - IVIS veterinary library")
+            ]
+            
+            for name, message in inactive_sources:
+                if name not in active_sources:
+                    sources.append(PaperSource(
+                        name=name,
+                        enabled=False,
+                        last_crawl=None,
+                        last_success=None,
+                        papers_acquired=0,
+                        error_count=0,
+                        api_status="down",
+                        error_message=message
+                    ))
+            
+            return sources
+            
+        except Exception as e:
+            print(f"Error getting paper sources from S3: {e}")
+            # Fallback to minimal config if S3 fails
+            return [
+                PaperSource(
+                    name="PubMed",
+                    enabled=True,
+                    last_crawl=None,
+                    last_success=None,
+                    papers_acquired=0,
+                    error_count=0,
+                    api_status="down",
+                    error_message="Unable to fetch source status"
+                ),
+                PaperSource(
+                    name="Europe PMC",
+                    enabled=True,
+                    last_crawl=None,
+                    last_success=None,
+                    papers_acquired=0,
+                    error_count=0,
+                    api_status="down",
+                    error_message="Unable to fetch source status"
+                )
+            ]
     
     async def get_processing_queue(self, limit: int, status: Optional[str]) -> Dict[str, Any]:
         """Get papers in processing queue"""

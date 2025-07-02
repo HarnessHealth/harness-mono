@@ -77,6 +77,15 @@ class Settings(BaseSettings):
     
     # Airflow
     AIRFLOW_URL: str = "http://localhost:8080"
+    
+    # Paper Crawling
+    NCBI_API_KEY: Optional[str] = None
+    CROSSREF_EMAIL: Optional[str] = None
+    
+    # MinIO/S3 Storage
+    MINIO_ROOT_USER: str = "minioadmin"
+    MINIO_ROOT_PASSWORD: str = "minioadmin"
+    MINIO_ENDPOINT: str = "http://localhost:9000"
 
 
 settings = Settings()

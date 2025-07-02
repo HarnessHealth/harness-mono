@@ -24,6 +24,8 @@ ENV PATH="$POETRY_HOME/bin:$VENV_PATH/bin:$PATH"
 # Builder stage - install build dependencies
 FROM python-base as builder-base
 
+ARG POETRY_VERSION=1.8.3
+
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \

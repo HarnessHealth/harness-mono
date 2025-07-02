@@ -7,10 +7,10 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import make_asgi_app
-from strawberry.fastapi import GraphQLRouter
+# from strawberry.fastapi import GraphQLRouter
 
 from backend.api.config import settings
-from backend.api.graphql.schema import schema
+# from backend.api.graphql.schema import schema
 from backend.api.middleware import (
     RequestIDMiddleware,
     LoggingMiddleware,
@@ -64,9 +64,9 @@ def create_app() -> FastAPI:
     app.include_router(ask.router, prefix="/api/ask", tags=["ask"])
     app.include_router(admin.router, tags=["admin"])
 
-    # Add GraphQL endpoint
-    graphql_app = GraphQLRouter(schema)
-    app.include_router(graphql_app, prefix="/graphql")
+    # Add GraphQL endpoint (temporarily disabled)
+    # graphql_app = GraphQLRouter(schema)
+    # app.include_router(graphql_app, prefix="/graphql")
 
     return app
 
