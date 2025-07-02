@@ -51,31 +51,27 @@ phases:
       - echo Build completed on `date`
       - echo Pushed $REPOSITORY_URI:$IMAGE_TAG
       - |
-        # Update ECS service with new image (optional)
-        if [ "$DEPLOY_TO_ECS" = "true" ]; then
-          echo "Updating ECS service..."
-          CLUSTER_NAME="harness-main-$ENVIRONMENT"
-          SERVICE_NAME="harness-api-service-$ENVIRONMENT"
+        # Update ECS service with new image
+        echo "Updating ECS service..."
+        CLUSTER_NAME="harness-main-development"
+        SERVICE_NAME="harness-api-development"
+        
+        # Check if cluster exists
+        if aws ecs describe-clusters --clusters $CLUSTER_NAME --query 'clusters[0].status' --output text 2>/dev/null | grep -q "ACTIVE"; then
+          echo "Cluster $CLUSTER_NAME is active"
           
-          # Check if cluster exists
-          if aws ecs describe-clusters --clusters $CLUSTER_NAME --query 'clusters[0].status' --output text 2>/dev/null | grep -q "ACTIVE"; then
-            echo "Cluster $CLUSTER_NAME is active"
-            
-            # Check if service exists
-            if aws ecs describe-services --cluster $CLUSTER_NAME --services $SERVICE_NAME --query 'services[0].status' --output text 2>/dev/null | grep -q "ACTIVE"; then
-              echo "Service $SERVICE_NAME exists, updating..."
-              aws ecs update-service \
-                --cluster $CLUSTER_NAME \
-                --service $SERVICE_NAME \
-                --force-new-deployment && echo "✅ ECS service updated successfully" || echo "❌ ECS service update failed"
-            else
-              echo "⚠️  Service $SERVICE_NAME not found in cluster $CLUSTER_NAME"
-            fi
+          # Check if service exists
+          if aws ecs describe-services --cluster $CLUSTER_NAME --services $SERVICE_NAME --query 'services[0].status' --output text 2>/dev/null | grep -q "ACTIVE"; then
+            echo "Service $SERVICE_NAME exists, updating..."
+            aws ecs update-service \
+              --cluster $CLUSTER_NAME \
+              --service $SERVICE_NAME \
+              --force-new-deployment && echo "✅ ECS service updated successfully" || echo "❌ ECS service update failed"
           else
-            echo "⚠️  Cluster $CLUSTER_NAME not found or not active"
+            echo "⚠️  Service $SERVICE_NAME not found in cluster $CLUSTER_NAME"
           fi
         else
-          echo "ECS deployment skipped (DEPLOY_TO_ECS not set to true)"
+          echo "⚠️  Cluster $CLUSTER_NAME not found or not active"
         fi
 
 cache:

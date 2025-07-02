@@ -145,8 +145,12 @@ resource "aws_codebuild_project" "backend" {
   }
 
   source {
-    type = "S3"
-    location = "${aws_s3_bucket.codebuild_cache.bucket}/source/backend-source.zip"
+    type            = "GITHUB"
+    location        = "https://github.com/HarnessHealth/harness-mono.git"
+    git_clone_depth = 1
+    git_submodules_config {
+      fetch_submodules = false
+    }
     buildspec = file("${path.module}/buildspecs/backend-buildspec.yml")
   }
 
@@ -159,6 +163,24 @@ resource "aws_codebuild_project" "backend" {
 
   tags = {
     Name = "${var.project_name}-backend-build"
+  }
+}
+
+# GitHub webhook for backend builds
+resource "aws_codebuild_webhook" "backend" {
+  project_name = aws_codebuild_project.backend.name
+  build_type   = "BUILD"
+
+  filter_group {
+    filter {
+      type    = "EVENT"
+      pattern = "PUSH"
+    }
+
+    filter {
+      type    = "HEAD_REF"
+      pattern = "refs/heads/master"
+    }
   }
 }
 
@@ -202,8 +224,12 @@ resource "aws_codebuild_project" "lambda" {
   }
 
   source {
-    type = "S3"
-    location = "${aws_s3_bucket.codebuild_cache.bucket}/source/lambda-source.zip"
+    type            = "GITHUB"
+    location        = "https://github.com/HarnessHealth/harness-mono.git"
+    git_clone_depth = 1
+    git_submodules_config {
+      fetch_submodules = false
+    }
     buildspec = file("${path.module}/buildspecs/lambda-buildspec.yml")
   }
 
@@ -216,6 +242,29 @@ resource "aws_codebuild_project" "lambda" {
 
   tags = {
     Name = "${var.project_name}-lambda-build"
+  }
+}
+
+# GitHub webhook for lambda builds
+resource "aws_codebuild_webhook" "lambda" {
+  project_name = aws_codebuild_project.lambda.name
+  build_type   = "BUILD"
+
+  filter_group {
+    filter {
+      type    = "EVENT"
+      pattern = "PUSH"
+    }
+
+    filter {
+      type    = "HEAD_REF"
+      pattern = "refs/heads/master"
+    }
+
+    filter {
+      type    = "FILE_PATH"
+      pattern = "data-pipeline/lambdas/**/*"
+    }
   }
 }
 
@@ -269,8 +318,12 @@ resource "aws_codebuild_project" "admin" {
   }
 
   source {
-    type = "S3"
-    location = "${aws_s3_bucket.codebuild_cache.bucket}/source/admin-source.zip"
+    type            = "GITHUB"
+    location        = "https://github.com/HarnessHealth/harness-mono.git"
+    git_clone_depth = 1
+    git_submodules_config {
+      fetch_submodules = false
+    }
     buildspec = file("${path.module}/buildspecs/admin-buildspec.yml")
   }
 
@@ -283,6 +336,29 @@ resource "aws_codebuild_project" "admin" {
 
   tags = {
     Name = "${var.project_name}-admin-build"
+  }
+}
+
+# GitHub webhook for admin builds
+resource "aws_codebuild_webhook" "admin" {
+  project_name = aws_codebuild_project.admin.name
+  build_type   = "BUILD"
+
+  filter_group {
+    filter {
+      type    = "EVENT"
+      pattern = "PUSH"
+    }
+
+    filter {
+      type    = "HEAD_REF"
+      pattern = "refs/heads/master"
+    }
+
+    filter {
+      type    = "FILE_PATH"
+      pattern = "admin-frontend/**/*"
+    }
   }
 }
 
