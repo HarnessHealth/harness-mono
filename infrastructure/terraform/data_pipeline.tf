@@ -127,10 +127,11 @@ resource "aws_lambda_function" "grobid_processor" {
     }
   }
 
-  vpc_config {
-    subnet_ids         = aws_subnet.private[*].id
-    security_group_ids = [aws_security_group.lambda.id]
-  }
+  # VPC config removed - Lambda needs internet access to crawl external APIs (PMC, PubMed)
+  # vpc_config {
+  #   subnet_ids         = aws_subnet.private[*].id
+  #   security_group_ids = [aws_security_group.lambda.id]
+  # }
 
   tags = {
     Name = "${var.project_name}-grobid-processor-${var.environment}"
@@ -228,15 +229,16 @@ resource "aws_iam_role_policy" "grobid_lambda" {
         ]
         Resource = "arn:aws:logs:*:*:*"
       },
-      {
-        Effect = "Allow"
-        Action = [
-          "ec2:CreateNetworkInterface",
-          "ec2:DescribeNetworkInterfaces",
-          "ec2:DeleteNetworkInterface"
-        ]
-        Resource = "*"
-      }
+      # VPC permissions removed - no longer needed without VPC config
+      # {
+      #   Effect = "Allow"
+      #   Action = [
+      #     "ec2:CreateNetworkInterface",
+      #     "ec2:DescribeNetworkInterfaces",
+      #     "ec2:DeleteNetworkInterface"
+      #   ]
+      #   Resource = "*"
+      # }
     ]
   })
 }
