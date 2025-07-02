@@ -1,0 +1,234 @@
+{
+  "metadata": {
+    "description": "NAVLE-style questions for veterinary AI evaluation",
+    "version": "1.0",
+    "last_updated": "2024-01-02",
+    "categories": [
+      "Small Animal Medicine",
+      "Large Animal Medicine", 
+      "Exotic Animal Medicine",
+      "Surgery",
+      "Pharmacology",
+      "Pathology",
+      "Public Health",
+      "Radiology",
+      "Anesthesia",
+      "Clinical Pathology",
+      "Theriogenology",
+      "Nutrition",
+      "Preventive Medicine"
+    ]
+  },
+  "questions": [
+    {
+      "id": "navle_001",
+      "category": "Small Animal Medicine",
+      "question": "A 12-year-old spayed female Poodle presents with a 3-month history of increased water consumption and urination. Physical examination reveals bilateral cataracts. Blood glucose is 380 mg/dL. Which long-term complication is this patient at highest risk for?",
+      "choices": [
+        "A) Diabetic ketoacidosis",
+        "B) Hyperosmolar hyperglycemic state", 
+        "C) Peripheral neuropathy",
+        "D) Diabetic nephropathy",
+        "E) Gastroparesis"
+      ],
+      "answer": "A",
+      "explanation": "Dogs with diabetes mellitus are at highest risk for diabetic ketoacidosis, especially during periods of stress or concurrent illness."
+    },
+    {
+      "id": "navle_002",
+      "category": "Large Animal Medicine",
+      "question": "A 6-year-old Quarter Horse gelding presents with acute onset of severe lameness in the right forelimb. There is increased digital pulse and the hoof wall feels warm. The horse is reluctant to move and shifts weight to the hindlimbs. What is the most appropriate immediate treatment?",
+      "choices": [
+        "A) Phenylbutazone and stall rest",
+        "B) Ice water immersion of affected hooves",
+        "C) Immediate hoof trimming",
+        "D) Intravenous DMSO",
+        "E) Corticosteroid injection"
+      ],
+      "answer": "B",
+      "explanation": "Cryotherapy (ice water immersion) is the most effective immediate treatment for acute laminitis to reduce inflammation and limit damage."
+    },
+    {
+      "id": "navle_003",
+      "category": "Exotic Animal Medicine",
+      "question": "A 3-year-old male intact ferret presents with difficulty urinating, lethargy, and a distended abdomen. Physical examination reveals a large, firm bladder. What is the most common cause of urinary obstruction in ferrets?",
+      "choices": [
+        "A) Urolithiasis",
+        "B) Prostatic cysts",
+        "C) Urethral stricture",
+        "D) Bladder neoplasia",
+        "E) Urethral trauma"
+      ],
+      "answer": "B",
+      "explanation": "Prostatic cysts secondary to adrenal disease are the most common cause of urinary obstruction in male ferrets."
+    },
+    {
+      "id": "navle_004",
+      "category": "Surgery",
+      "question": "During ovariohysterectomy in a dog, which vessel must be ligated first to prevent hemorrhage?",
+      "choices": [
+        "A) Ovarian artery and vein",
+        "B) Uterine artery",
+        "C) Vaginal artery",
+        "D) Broad ligament vessels",
+        "E) Round ligament vessels"
+      ],
+      "answer": "A",
+      "explanation": "The ovarian artery and vein must be ligated first as they are the primary blood supply to the ovary and can cause significant hemorrhage if torn."
+    },
+    {
+      "id": "navle_005",
+      "category": "Pharmacology",
+      "question": "A 4-year-old Siamese cat is prescribed methimazole for hyperthyroidism. Which adverse effect should be monitored for during the first 3 months of treatment?",
+      "choices": [
+        "A) Hepatopathy",
+        "B) Facial excoriation",
+        "C) Thrombocytopenia",
+        "D) All of the above",
+        "E) None of the above"
+      ],
+      "answer": "D",
+      "explanation": "Methimazole can cause hepatopathy, facial excoriation, and blood dyscrasias including thrombocytopenia, especially in the first 3 months of treatment."
+    },
+    {
+      "id": "navle_006",
+      "category": "Pathology",
+      "question": "A necropsy on a 2-year-old feedlot steer reveals multiple pale, gritty foci throughout the myocardium. Histopathology shows multifocal myocardial necrosis and mineralization. What is the most likely nutritional deficiency?",
+      "choices": [
+        "A) Vitamin E/Selenium",
+        "B) Copper",
+        "C) Vitamin A",
+        "D) Cobalt",
+        "E) Zinc"
+      ],
+      "answer": "A",
+      "explanation": "White muscle disease (nutritional myodegeneration) caused by vitamin E/selenium deficiency presents with pale, gritty myocardial lesions due to necrosis and mineralization."
+    },
+    {
+      "id": "navle_007",
+      "category": "Public Health",
+      "question": "Which of the following diseases in animals must be reported to state and federal authorities within 24 hours of diagnosis?",
+      "choices": [
+        "A) Rabies",
+        "B) Foot-and-mouth disease",
+        "C) Anthrax",
+        "D) All of the above",
+        "E) None of the above"
+      ],
+      "answer": "D",
+      "explanation": "Rabies, foot-and-mouth disease, and anthrax are all reportable diseases that must be reported immediately to state and federal animal health officials."
+    },
+    {
+      "id": "navle_008",
+      "category": "Radiology",
+      "question": "On a lateral thoracic radiograph of a dog, the cardiac silhouette measures 12 vertebral heart sizes. This finding is most consistent with:",
+      "choices": [
+        "A) Normal heart size",
+        "B) Mild cardiomegaly",
+        "C) Moderate cardiomegaly",
+        "D) Severe cardiomegaly",
+        "E) Cannot determine from this measurement"
+      ],
+      "answer": "D",
+      "explanation": "Normal VHS in dogs is 8.5-10.5. A VHS of 12 indicates severe cardiomegaly."
+    },
+    {
+      "id": "navle_009",
+      "category": "Anesthesia",
+      "question": "A brachycephalic dog requires general anesthesia. Which of the following is the most important consideration during recovery?",
+      "choices": [
+        "A) Maintain sternal recumbency",
+        "B) Extubate as soon as possible",
+        "C) Keep intubated until fully conscious",
+        "D) Use high oxygen flow rates",
+        "E) Administer reversal agents"
+      ],
+      "answer": "C",
+      "explanation": "Brachycephalic dogs should remain intubated until fully conscious due to their increased risk of airway obstruction during recovery."
+    },
+    {
+      "id": "navle_010",
+      "category": "Clinical Pathology",
+      "question": "A cat presents with severe regenerative anemia (PCV 12%, reticulocytes 380,000/μL). Blood smear examination reveals numerous small, basophilic, coccoid organisms on the surface of red blood cells. What is the causative agent?",
+      "choices": [
+        "A) Mycoplasma haemofelis",
+        "B) Babesia felis",
+        "C) Cytauxzoon felis",
+        "D) Bartonella henselae",
+        "E) Anaplasma phagocytophilum"
+      ],
+      "answer": "A",
+      "explanation": "Mycoplasma haemofelis causes hemolytic anemia in cats and appears as small, basophilic cocci on the RBC surface."
+    },
+    {
+      "id": "navle_011",
+      "category": "Theriogenology",
+      "question": "A dairy cow is 45 days postpartum and has not shown signs of estrus. Rectal palpation reveals a 3cm structure on the right ovary that feels firm and has a crown-like projection. What is this structure?",
+      "choices": [
+        "A) Corpus luteum",
+        "B) Follicular cyst",
+        "C) Luteal cyst",
+        "D) Corpus albicans",
+        "E) Mature follicle"
+      ],
+      "answer": "A",
+      "explanation": "A corpus luteum feels firm with a crown-like projection on palpation and would be present if the cow is cycling normally but estrus was not detected."
+    },
+    {
+      "id": "navle_012",
+      "category": "Nutrition",
+      "question": "A flock of 3-week-old broiler chickens shows signs of leg weakness, reluctance to move, and sitting on their hocks. Several birds have twisted legs. What is the most likely nutritional cause?",
+      "choices": [
+        "A) Vitamin D deficiency",
+        "B) Manganese deficiency",
+        "C) Calcium deficiency",
+        "D) Vitamin E deficiency",
+        "E) Phosphorus excess"
+      ],
+      "answer": "B",
+      "explanation": "Manganese deficiency in growing chickens causes perosis (slipped tendon), characterized by leg weakness and twisted legs."
+    },
+    {
+      "id": "navle_013",
+      "category": "Preventive Medicine",
+      "question": "A stable wants to implement a deworming program for their horses. Which parasite's eggs would require a larvicidal dose of anthelmintic due to encysted larvae?",
+      "choices": [
+        "A) Large strongyles",
+        "B) Small strongyles (cyathostomins)",
+        "C) Ascarids",
+        "D) Tapeworms",
+        "E) Pinworms"
+      ],
+      "answer": "B",
+      "explanation": "Small strongyles (cyathostomins) have encysted larval stages in the intestinal wall that require specific larvicidal treatment protocols."
+    },
+    {
+      "id": "navle_014",
+      "category": "Small Animal Medicine",
+      "question": "A 6-month-old male Bernese Mountain Dog presents with fever, shifting leg lameness, and swollen joints. Synovial fluid analysis reveals neutrophilic inflammation with no bacteria seen. What is the most likely diagnosis?",
+      "choices": [
+        "A) Septic arthritis",
+        "B) Immune-mediated polyarthritis",
+        "C) Lyme disease",
+        "D) Systemic lupus erythematosus",
+        "E) Rheumatoid arthritis"
+      ],
+      "answer": "B",
+      "explanation": "Young Bernese Mountain Dogs are predisposed to immune-mediated polyarthritis, which presents with sterile neutrophilic joint inflammation."
+    },
+    {
+      "id": "navle_015",
+      "category": "Emergency Medicine",
+      "question": "A dog presents after ingesting rat poison 2 hours ago. The owner brings the package showing the active ingredient is bromethalin. What is the mechanism of toxicity?",
+      "choices": [
+        "A) Anticoagulation",
+        "B) Uncoupling of oxidative phosphorylation",
+        "C) Cholinesterase inhibition",
+        "D) Vitamin D3 toxicosis",
+        "E) Zinc phosphide release"
+      ],
+      "answer": "B",
+      "explanation": "Bromethalin is a neurotoxic rodenticide that works by uncoupling oxidative phosphorylation in the central nervous system, leading to cerebral edema."
+    }
+  ]
+}

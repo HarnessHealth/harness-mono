@@ -1,0 +1,37 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - REPOSITORY_URI=$ECR_REPOSITORY_URI
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=${COMMIT_HASH:=latest}
+      
+  build:
+    commands:
+      - echo Building Lambda function images...
+      - |
+        # Build GROBID processor
+        cd data-pipeline/lambdas/grobid_processor
+        docker buildx create --use --driver docker-container
+        docker buildx build \
+          --platform linux/amd64 \
+          --cache-from type=registry,ref=$REPOSITORY_URI:grobid-buildcache \
+          --cache-to type=registry,ref=$REPOSITORY_URI:grobid-buildcache,mode=max \
+          --tag $REPOSITORY_URI:grobid-processor-$IMAGE_TAG \
+          --tag $REPOSITORY_URI:grobid-processor-latest \
+          --push .
+        cd $CODEBUILD_SRC_DIR
+      
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - |
+        # Update Lambda function with new image
+        if [ "$UPDATE_LAMBDA" = "true" ]; then
+          aws lambda update-function-code \
+            --function-name harness-grobid-processor-$ENVIRONMENT \
+            --image-uri $REPOSITORY_URI:grobid-processor-latest
+        fi

@@ -1,0 +1,142 @@
+{
+  "admin_ecr_repository_url": {
+    "sensitive": false,
+    "type": "string",
+    "value": "285641110801.dkr.ecr.us-east-1.amazonaws.com/harness/admin"
+  },
+  "airflow_db_endpoint": {
+    "sensitive": true,
+    "type": "string",
+    "value": "harness-airflow-db-development.c41uwewwqso1.us-east-1.rds.amazonaws.com:5432"
+  },
+  "alb_dns_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "harness-alb-development-79574904.us-east-1.elb.amazonaws.com"
+  },
+  "alb_zone_id": {
+    "sensitive": false,
+    "type": "string",
+    "value": "Z35SXDOTRQ7X7K"
+  },
+  "api_ecr_repository_url": {
+    "sensitive": false,
+    "type": "string",
+    "value": "285641110801.dkr.ecr.us-east-1.amazonaws.com/harness/api"
+  },
+  "database_endpoint": {
+    "sensitive": true,
+    "type": "string",
+    "value": "harness-db-development.c41uwewwqso1.us-east-1.rds.amazonaws.com:5432"
+  },
+  "document_processing_queue_url": {
+    "sensitive": false,
+    "type": "string",
+    "value": "https://sqs.us-east-1.amazonaws.com/285641110801/harness-document-processing-development"
+  },
+  "ecr_repository_url": {
+    "sensitive": false,
+    "type": "string",
+    "value": "285641110801.dkr.ecr.us-east-1.amazonaws.com/harness-training-development"
+  },
+  "gpu_launch_template_id": {
+    "sensitive": false,
+    "type": "string",
+    "value": "lt-0b832c9b6061bbe89"
+  },
+  "model_artifacts_bucket": {
+    "sensitive": false,
+    "type": "string",
+    "value": "harness-model-artifacts-development"
+  },
+  "nameservers": {
+    "sensitive": false,
+    "type": [
+      "list",
+      "string"
+    ],
+    "value": [
+      "ns-1443.awsdns-52.org",
+      "ns-1842.awsdns-38.co.uk",
+      "ns-84.awsdns-10.com",
+      "ns-868.awsdns-44.net"
+    ]
+  },
+  "private_subnet_ids": {
+    "sensitive": false,
+    "type": [
+      "tuple",
+      [
+        "string",
+        "string",
+        "string"
+      ]
+    ],
+    "value": [
+      "subnet-0003d93763e0a4789",
+      "subnet-05f273d5676ae6ec1",
+      "subnet-0b7cdd0d74d52882e"
+    ]
+  },
+  "public_subnet_ids": {
+    "sensitive": false,
+    "type": [
+      "tuple",
+      [
+        "string",
+        "string",
+        "string"
+      ]
+    ],
+    "value": [
+      "subnet-0c359428b5ea69a3a",
+      "subnet-0b445c51607503783",
+      "subnet-0e2d84caf5d4fe2eb"
+    ]
+  },
+  "redis_endpoint": {
+    "sensitive": false,
+    "type": "string",
+    "value": "harness-cache-development.3qeknz.0001.use1.cache.amazonaws.com"
+  },
+  "s3_buckets": {
+    "sensitive": false,
+    "type": [
+      "object",
+      {
+        "airflow_logs": "string",
+        "embeddings": "string",
+        "model_artifacts": "string",
+        "training_data": "string",
+        "veterinary_corpus": "string"
+      }
+    ],
+    "value": {
+      "airflow_logs": "harness-airflow-logs-development",
+      "embeddings": "harness-embeddings-development",
+      "model_artifacts": "harness-model-artifacts-development",
+      "training_data": "harness-training-data-development",
+      "veterinary_corpus": "harness-veterinary-corpus-development"
+    }
+  },
+  "sagemaker_domain_id": {
+    "sensitive": false,
+    "type": "string",
+    "value": "d-pqwc0odbwqzo"
+  },
+  "training_data_bucket": {
+    "sensitive": false,
+    "type": "string",
+    "value": "harness-training-data-development"
+  },
+  "veterinary_corpus_bucket": {
+    "sensitive": false,
+    "type": "string",
+    "value": "harness-veterinary-corpus-development"
+  },
+  "vpc_id": {
+    "sensitive": false,
+    "type": "string",
+    "value": "vpc-010ea5cb6b03f8ff2"
+  }
+}

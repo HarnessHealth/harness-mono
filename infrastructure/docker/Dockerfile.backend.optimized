@@ -1,0 +1,116 @@
+# Harness Backend Dockerfile - Optimized
+# syntax=docker/dockerfile:1.4
+
+# Build arguments
+ARG PYTHON_VERSION=3.12
+ARG POETRY_VERSION=1.8.3
+
+# Base stage for common dependencies
+FROM python:${PYTHON_VERSION}-slim as python-base
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=off \
+    PIP_DISABLE_PIP_VERSION_CHECK=on \
+    PIP_DEFAULT_TIMEOUT=100 \
+    POETRY_HOME="/opt/poetry" \
+    POETRY_VIRTUALENVS_IN_PROJECT=true \
+    POETRY_NO_INTERACTION=1 \
+    PYSETUP_PATH="/opt/pysetup" \
+    VENV_PATH="/opt/pysetup/.venv"
+
+ENV PATH="$POETRY_HOME/bin:$VENV_PATH/bin:$PATH"
+
+# Builder stage - install build dependencies
+FROM python-base as builder-base
+
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    git \
+    curl \
+    pkg-config \
+    libxml2-dev \
+    libxmlsec1-dev \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install poetry
+RUN --mount=type=cache,target=/root/.cache \
+    curl -sSL https://install.python-poetry.org | python3 - --version ${POETRY_VERSION}
+
+WORKDIR $PYSETUP_PATH
+
+# Copy dependency files first (better caching)
+COPY pyproject.toml poetry.lock* ./
+
+# Install dependencies with caching
+RUN --mount=type=cache,target=/root/.cache \
+    poetry install --only main --no-root
+
+# Development stage
+FROM python-base as development
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    libpq5 \
+    libxml2 \
+    libxmlsec1 \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy poetry and venv from builder
+COPY --from=builder-base $POETRY_HOME $POETRY_HOME
+COPY --from=builder-base $PYSETUP_PATH $PYSETUP_PATH
+
+WORKDIR $PYSETUP_PATH
+
+# Install dev dependencies
+RUN --mount=type=cache,target=/root/.cache \
+    poetry install --with dev --no-root
+
+WORKDIR /app
+
+# Copy application code
+COPY backend/ ./backend/
+
+# Install project in editable mode
+RUN poetry install --only-root
+
+EXPOSE 8000
+CMD ["uvicorn", "backend.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+# Production stage
+FROM python-base as production
+
+# Install only runtime dependencies
+RUN apt-get update && apt-get install -y \
+    libpq5 \
+    libxml2 \
+    libxmlsec1 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN useradd -m -u 1000 harness
+
+# Copy venv from builder
+COPY --from=builder-base --chown=harness:harness $PYSETUP_PATH $PYSETUP_PATH
+
+WORKDIR /app
+
+# Copy application code
+COPY --chown=harness:harness backend/ ./backend/
+
+# Switch to non-root user
+USER harness
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/api/health || exit 1
+
+EXPOSE 8000
+
+# Use exec form for better signal handling
+CMD ["python", "-m", "uvicorn", "backend.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

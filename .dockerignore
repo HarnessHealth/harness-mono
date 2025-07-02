@@ -1,0 +1,104 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+.pytest_cache
+.coverage
+htmlcov
+.tox
+.nox
+.mypy_cache
+.ruff_cache
+*.log
+
+# Virtual environments
+venv
+env
+ENV
+.venv
+
+# IDEs
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+
+# Node (for frontend builds)
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Documentation
+docs
+*.md
+README.md
+LICENSE
+
+# Infrastructure
+infrastructure
+terraform
+*.tf
+*.tfstate
+*.tfvars
+
+# Scripts
+scripts
+deploy.sh
+
+# Tests
+tests
+test_*
+*_test.py
+
+# Admin frontend (for backend builds)
+admin-frontend
+
+# Data pipeline files (for backend builds)
+data-pipeline/dags
+data-pipeline/notebooks
+
+# Local development
+.env
+.env.*
+docker-compose.yml
+docker-compose.*.yml
+
+# Temporary files
+tmp
+temp
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+
+# ML model files (large)
+*.pth
+*.pt
+*.onnx
+*.h5
+*.safetensors
+models/
+
+# Data files
+*.csv
+*.json
+*.parquet
+*.arrow
+data/
+
+# AWS
+.aws
