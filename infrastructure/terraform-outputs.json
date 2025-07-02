@@ -1,8 +1,23 @@
 {
+  "admin_cloudfront_distribution_id": {
+    "sensitive": false,
+    "type": "string",
+    "value": "E8EHISKB4UQJV"
+  },
   "admin_ecr_repository_url": {
     "sensitive": false,
     "type": "string",
     "value": "285641110801.dkr.ecr.us-east-1.amazonaws.com/harness/admin"
+  },
+  "admin_frontend_bucket": {
+    "sensitive": false,
+    "type": "string",
+    "value": "harness-admin-frontend-development-285641110801"
+  },
+  "admin_frontend_url": {
+    "sensitive": false,
+    "type": "string",
+    "value": "https://admin.harness.health"
   },
   "airflow_db_endpoint": {
     "sensitive": true,
@@ -12,7 +27,7 @@
   "alb_dns_name": {
     "sensitive": false,
     "type": "string",
-    "value": "harness-alb-development-79574904.us-east-1.elb.amazonaws.com"
+    "value": "harness-alb-development-1498577718.us-east-1.elb.amazonaws.com"
   },
   "alb_zone_id": {
     "sensitive": false,
@@ -23,6 +38,21 @@
     "sensitive": false,
     "type": "string",
     "value": "285641110801.dkr.ecr.us-east-1.amazonaws.com/harness/api"
+  },
+  "codebuild_backend_project": {
+    "sensitive": false,
+    "type": "string",
+    "value": "harness-backend-build"
+  },
+  "codebuild_lambda_project": {
+    "sensitive": false,
+    "type": "string",
+    "value": "harness-lambda-build"
+  },
+  "cost_category_arn": {
+    "sensitive": false,
+    "type": "string",
+    "value": "arn:aws:ce::285641110801:costcategory/aa073d6f-63d2-4d66-a41d-9bed2ef9df42"
   },
   "database_endpoint": {
     "sensitive": true,
@@ -49,6 +79,11 @@
     "type": "string",
     "value": "harness-model-artifacts-development"
   },
+  "monthly_budget_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "harness-monthly-budget"
+  },
   "nameservers": {
     "sensitive": false,
     "type": [
@@ -73,9 +108,9 @@
       ]
     ],
     "value": [
-      "subnet-0003d93763e0a4789",
-      "subnet-05f273d5676ae6ec1",
-      "subnet-0b7cdd0d74d52882e"
+      "subnet-0b40e578885d3af9b",
+      "subnet-00fd383b4d32b0717",
+      "subnet-01fade3c62d681ed7"
     ]
   },
   "public_subnet_ids": {
@@ -89,9 +124,9 @@
       ]
     ],
     "value": [
-      "subnet-0c359428b5ea69a3a",
-      "subnet-0b445c51607503783",
-      "subnet-0e2d84caf5d4fe2eb"
+      "subnet-0454c9435fdc2c2e8",
+      "subnet-042fb429b9e544213",
+      "subnet-0f7167f21dd40a3e0"
     ]
   },
   "redis_endpoint": {
@@ -122,7 +157,7 @@
   "sagemaker_domain_id": {
     "sensitive": false,
     "type": "string",
-    "value": "d-pqwc0odbwqzo"
+    "value": "d-tq6jlrsgxdop"
   },
   "training_data_bucket": {
     "sensitive": false,

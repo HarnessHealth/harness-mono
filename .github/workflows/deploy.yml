@@ -23,6 +23,7 @@ on:
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: harness
+  USE_CODEBUILD: true
 
 permissions:
   id-token: write

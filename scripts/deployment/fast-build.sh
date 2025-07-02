@@ -12,6 +12,13 @@ NC='\033[0m' # No Color
 
 # Configuration
 PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+
+# Load environment variables from .env file if it exists
+if [ -f "$PROJECT_ROOT/.env" ]; then
+    echo -e "${BLUE}Loading environment from .env file...${NC}"
+    export $(grep -v '^#' "$PROJECT_ROOT/.env" | xargs)
+fi
+
 ENVIRONMENT=${ENVIRONMENT:-development}
 AWS_REGION=${AWS_REGION:-us-east-1}
 AWS_PROFILE=${AWS_PROFILE:-default}
@@ -51,24 +58,26 @@ ecr_login() {
 # Function to build with CodeBuild
 build_with_codebuild() {
     local project_name=$1
-    local source_location=$2
     
     echo -e "${YELLOW}Starting CodeBuild project: $project_name${NC}"
     
-    # Create source archive
-    TEMP_FILE=$(mktemp)
+    # Create source archive as ZIP (CodeBuild expects ZIP for S3 source)
+    TEMP_DIR=$(mktemp -d)
+    TEMP_FILE="$TEMP_DIR/source.zip"
     cd "$PROJECT_ROOT"
-    git archive --format=tar.gz HEAD > $TEMP_FILE
     
-    # Upload to S3
+    echo -e "${YELLOW}Creating source archive...${NC}"
+    git archive --format=zip HEAD > $TEMP_FILE
+    
+    # Upload to S3 at the expected location
     SOURCE_BUCKET=$(aws s3api list-buckets --query "Buckets[?contains(Name, 'codebuild-cache')].Name" --output text --profile $AWS_PROFILE)
-    SOURCE_KEY="source/$(date +%s)-$(git rev-parse --short HEAD).tar.gz"
-    aws s3 cp $TEMP_FILE s3://$SOURCE_BUCKET/$SOURCE_KEY --profile $AWS_PROFILE
+    aws s3 cp $TEMP_FILE s3://$SOURCE_BUCKET/source/source.zip --profile $AWS_PROFILE
+    
+    echo -e "${YELLOW}Source uploaded, starting build...${NC}"
     
     # Start build
     BUILD_ID=$(aws codebuild start-build \
         --project-name $project_name \
-        --source-location-override s3://$SOURCE_BUCKET/$SOURCE_KEY \
         --environment-variables-override \
             name=ENVIRONMENT,value=$ENVIRONMENT,type=PLAINTEXT \
             name=DEPLOY_TO_ECS,value=true,type=PLAINTEXT \
@@ -81,7 +90,22 @@ build_with_codebuild() {
     
     # Wait for build to complete
     echo -e "${YELLOW}Waiting for build to complete...${NC}"
-    aws codebuild wait builds-completed --ids $BUILD_ID --profile $AWS_PROFILE
+    
+    # Poll build status until completion
+    while true; do
+        BUILD_STATUS=$(aws codebuild batch-get-builds --ids $BUILD_ID --query 'builds[0].buildStatus' --output text --profile $AWS_PROFILE 2>/dev/null || echo "IN_PROGRESS")
+        
+        case $BUILD_STATUS in
+            "SUCCEEDED"|"FAILED"|"FAULT"|"STOPPED"|"TIMED_OUT")
+                break
+                ;;
+            *)
+                echo -n "."
+                sleep 10
+                ;;
+        esac
+    done
+    echo ""
     
     # Check build status
     BUILD_STATUS=$(aws codebuild batch-get-builds --ids $BUILD_ID --query 'builds[0].buildStatus' --output text --profile $AWS_PROFILE)
@@ -93,7 +117,8 @@ build_with_codebuild() {
         exit 1
     fi
     
-    rm -f $TEMP_FILE
+    # Cleanup
+    rm -rf $TEMP_DIR
 }
 
 # Function to build locally with buildx
@@ -146,10 +171,10 @@ main() {
         
         case $COMPONENT in
             backend|all)
-                build_with_codebuild $BACKEND_PROJECT "$PROJECT_ROOT"
+                build_with_codebuild $BACKEND_PROJECT
                 ;;
             lambda)
-                build_with_codebuild $LAMBDA_PROJECT "$PROJECT_ROOT"
+                build_with_codebuild $LAMBDA_PROJECT
                 ;;
         esac
     else

@@ -13,6 +13,27 @@ phases:
   build:
     commands:
       - echo Building the Docker image...
+      - echo "Debug - Current directory contents:"
+      - ls -la
+      - echo "Debug - Working directory:"
+      - pwd
+      - echo "Debug - CODEBUILD_SRC_DIR contents:"
+      - ls -la $CODEBUILD_SRC_DIR || echo "CODEBUILD_SRC_DIR not accessible"
+      - echo "Debug - Environment variables:"
+      - env | grep CODEBUILD
+      - echo "Debug - Checking if we need to change to source directory:"
+      - |
+        if [ "$PWD" != "$CODEBUILD_SRC_DIR" ]; then
+          echo "Changing to CODEBUILD_SRC_DIR: $CODEBUILD_SRC_DIR"
+          cd $CODEBUILD_SRC_DIR
+          echo "New working directory: $(pwd)"
+          echo "Contents after cd:"
+          ls -la
+        fi
+      - echo "Debug - Looking for Dockerfile:"
+      - find . -name "*Dockerfile*" -type f
+      - echo "Debug - Final check before build:"
+      - ls -la infrastructure/docker/ || echo "infrastructure/docker/ not found"
       - |
         docker buildx create --use --driver docker-container
         docker buildx build \
@@ -30,12 +51,31 @@ phases:
       - echo Build completed on `date`
       - echo Pushed $REPOSITORY_URI:$IMAGE_TAG
       - |
-        # Update ECS service with new image
+        # Update ECS service with new image (optional)
         if [ "$DEPLOY_TO_ECS" = "true" ]; then
-          aws ecs update-service \
-            --cluster harness-cluster-$ENVIRONMENT \
-            --service harness-api-service-$ENVIRONMENT \
-            --force-new-deployment
+          echo "Updating ECS service..."
+          CLUSTER_NAME="harness-main-$ENVIRONMENT"
+          SERVICE_NAME="harness-api-service-$ENVIRONMENT"
+          
+          # Check if cluster exists
+          if aws ecs describe-clusters --clusters $CLUSTER_NAME --query 'clusters[0].status' --output text 2>/dev/null | grep -q "ACTIVE"; then
+            echo "Cluster $CLUSTER_NAME is active"
+            
+            # Check if service exists
+            if aws ecs describe-services --cluster $CLUSTER_NAME --services $SERVICE_NAME --query 'services[0].status' --output text 2>/dev/null | grep -q "ACTIVE"; then
+              echo "Service $SERVICE_NAME exists, updating..."
+              aws ecs update-service \
+                --cluster $CLUSTER_NAME \
+                --service $SERVICE_NAME \
+                --force-new-deployment && echo "✅ ECS service updated successfully" || echo "❌ ECS service update failed"
+            else
+              echo "⚠️  Service $SERVICE_NAME not found in cluster $CLUSTER_NAME"
+            fi
+          else
+            echo "⚠️  Cluster $CLUSTER_NAME not found or not active"
+          fi
+        else
+          echo "ECS deployment skipped (DEPLOY_TO_ECS not set to true)"
         fi
 
 cache:

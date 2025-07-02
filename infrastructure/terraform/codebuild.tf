@@ -83,6 +83,18 @@ resource "aws_iam_role_policy" "codebuild" {
           "codecommit:GitPull"
         ]
         Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ecs:UpdateService",
+          "ecs:DescribeServices",
+          "ecs:DescribeClusters"
+        ]
+        Resource = [
+          "arn:aws:ecs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:cluster/${var.project_name}-*",
+          "arn:aws:ecs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:service/${var.project_name}-*/*"
+        ]
       }
     ]
   })
@@ -133,7 +145,8 @@ resource "aws_codebuild_project" "backend" {
   }
 
   source {
-    type = "NO_SOURCE"
+    type = "S3"
+    location = "${aws_s3_bucket.codebuild_cache.bucket}/source/source.zip"
     buildspec = file("${path.module}/buildspecs/backend-buildspec.yml")
   }
 
@@ -189,7 +202,8 @@ resource "aws_codebuild_project" "lambda" {
   }
 
   source {
-    type = "NO_SOURCE"
+    type = "S3"
+    location = "${aws_s3_bucket.codebuild_cache.bucket}/source/source.zip"
     buildspec = file("${path.module}/buildspecs/lambda-buildspec.yml")
   }
 

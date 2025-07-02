@@ -70,38 +70,139 @@ def crawl_pubmed_papers(max_papers=100):
         # Fetch detailed information for each PMID
         papers = []
         if pmids:
-            detail_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
-            detail_params = {
-                'db': 'pubmed',
-                'id': ','.join(pmids[:50]),  # Limit to first 50
-                'retmode': 'json'
-            }
-            
-            if NCBI_API_KEY:
-                detail_params['api_key'] = NCBI_API_KEY
-            
-            detail_response = requests.get(detail_url, params=detail_params, timeout=30)
-            detail_response.raise_for_status()
-            detail_data = detail_response.json()
-            
-            result = detail_data.get('result', {})
-            for pmid in pmids[:50]:
-                if pmid in result:
-                    paper_data = result[pmid]
-                    papers.append({
-                        'pmid': pmid,
-                        'title': paper_data.get('title', ''),
-                        'authors': paper_data.get('authors', []),
-                        'journal': paper_data.get('source', ''),
-                        'pubdate': paper_data.get('pubdate', ''),
-                        'abstract': paper_data.get('abstract', ''),
-                        'source': 'pubmed'
-                    })
+            # Process papers in batches of 200 (NCBI API limit)
+            batch_size = 200
+            for i in range(0, min(len(pmids), max_papers), batch_size):
+                batch_pmids = pmids[i:i+batch_size]
+                
+                detail_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
+                detail_params = {
+                    'db': 'pubmed',
+                    'id': ','.join(batch_pmids),
+                    'retmode': 'json'
+                }
+                
+                if NCBI_API_KEY:
+                    detail_params['api_key'] = NCBI_API_KEY
+                
+                detail_response = requests.get(detail_url, params=detail_params, timeout=30)
+                detail_response.raise_for_status()
+                detail_data = detail_response.json()
+                
+                result = detail_data.get('result', {})
+                for pmid in batch_pmids:
+                    if pmid in result:
+                        paper_data = result[pmid]
+                        papers.append({
+                            'pmid': pmid,
+                            'title': paper_data.get('title', ''),
+                            'authors': paper_data.get('authors', []),
+                            'journal': paper_data.get('source', ''),
+                            'pubdate': paper_data.get('pubdate', ''),
+                            'abstract': paper_data.get('abstract', ''),
+                            'source': 'pubmed'
+                        })
         
         return papers
         
     except Exception as e:
         logger.error(f"Error crawling PubMed: {str(e)}")
+        return []
+
+
+def crawl_pmc_papers(max_papers=100):
+    """Crawl papers from PubMed Central (PMC) API for open access papers"""
+    import requests
+    from datetime import datetime, timedelta
+    
+    logger.info("Starting PMC crawl...")
+    
+    # Get date range for historical crawl - 1 year back
+    one_year_ago = (datetime.now() - timedelta(days=365)).strftime('%Y/%m/%d')
+    today = datetime.now().strftime('%Y/%m/%d')
+    
+    base_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+    params = {
+        'db': 'pmc',  # Use PMC database instead of PubMed
+        'term': '(veterinary[MeSH Terms] OR "animal diseases"[MeSH Terms] OR (dog OR canine OR cat OR feline OR equine OR bovine)) AND open access[filter]',
+        'retmax': max_papers,
+        'retmode': 'json',
+        'datetype': 'pdat',
+        'mindate': one_year_ago,
+        'maxdate': today,
+    }
+    
+    # Add API key if available for higher rate limits
+    if NCBI_API_KEY:
+        params['api_key'] = NCBI_API_KEY
+        logger.info("Using NCBI API key for higher rate limits")
+    
+    try:
+        response = requests.get(base_url, params=params, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+        
+        pmcids = data.get('esearchresult', {}).get('idlist', [])
+        logger.info(f"Found {len(pmcids)} PMC open access articles")
+        
+        # Fetch detailed information for each PMCID
+        papers = []
+        if pmcids:
+            # Process papers in batches of 200 (NCBI API limit)
+            batch_size = 200
+            for i in range(0, min(len(pmcids), max_papers), batch_size):
+                batch_pmcids = pmcids[i:i+batch_size]
+                
+                detail_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
+                detail_params = {
+                    'db': 'pmc',
+                    'id': ','.join(batch_pmcids),
+                    'retmode': 'json'
+                }
+                
+                if NCBI_API_KEY:
+                    detail_params['api_key'] = NCBI_API_KEY
+                
+                detail_response = requests.get(detail_url, params=detail_params, timeout=30)
+                detail_response.raise_for_status()
+                detail_data = detail_response.json()
+                
+                result = detail_data.get('result', {})
+                for pmcid in batch_pmcids:
+                    if pmcid in result:
+                        paper_data = result[pmcid]
+                        # PMC IDs need to be prefixed with PMC
+                        pmc_id = f"PMC{pmcid}" if not pmcid.startswith('PMC') else pmcid
+                        
+                        # Handle authors field (can be list or dict)
+                        authors = []
+                        author_data = paper_data.get('authors', [])
+                        if isinstance(author_data, list):
+                            authors = [str(author) for author in author_data if author]
+                        elif isinstance(author_data, dict):
+                            authors = [author.get('name', '') for author in author_data.get('author', [])]
+                        
+                        # Handle article IDs 
+                        pmid = ''
+                        articleids = paper_data.get('articleids', {})
+                        if isinstance(articleids, dict):
+                            pmid = articleids.get('pubmed', '')
+                        
+                        papers.append({
+                            'pmcid': pmc_id,
+                            'pmid': pmid,
+                            'title': paper_data.get('title', ''),
+                            'authors': authors,
+                            'journal': paper_data.get('fulljournalname', paper_data.get('source', '')),
+                            'pubdate': paper_data.get('pubdate', ''),
+                            'abstract': '',  # PMC summary doesn't include abstract, will get from full text
+                            'source': 'pmc'
+                        })
+        
+        return papers
+        
+    except Exception as e:
+        logger.error(f"Error crawling PMC: {str(e)}")
         return []
 
 
@@ -156,28 +257,30 @@ def crawl_europe_pmc_papers(max_papers=50):
 
 
 def get_pdf_urls(papers):
-    """Get PDF download URLs for papers"""
+    """Get PDF download URLs for papers, optimized for PMC open access papers"""
     pdf_urls = []
     
     for paper in papers:
         potential_urls = []
         paper_id = paper.get('pmcid') or paper.get('pmid')
         
-        # Try PMC ID first (most reliable for open access papers)
+        # PMC papers - these are guaranteed open access
         if paper.get('pmcid'):
             pmcid = paper['pmcid']
             if pmcid.startswith('PMC'):
-                # Multiple PMC URL formats to try
+                # PMC URLs are most reliable for open access papers
                 potential_urls.extend([
                     f"https://www.ncbi.nlm.nih.gov/pmc/articles/{pmcid}/pdf/",
+                    f"https://www.ncbi.nlm.nih.gov/pmc/articles/{pmcid}/pdf/{pmcid}.pdf",
                     f"https://europepmc.org/articles/{pmcid}?pdf=render",
-                    f"https://www.ncbi.nlm.nih.gov/pmc/articles/{pmcid}/pdf/{pmcid}.pdf"
+                    f"https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/{pmcid[:6]}/{pmcid}.pdf"  # PMC FTP access
                 ])
         
-        # For PubMed papers with PMC ID available, check link existence first
-        if paper.get('pmid') and not paper.get('pmcid'):
+        # For PubMed papers without PMC ID, try to find PMC version
+        elif paper.get('pmid'):
             pmid = paper['pmid']
-            # Try to find PMC version through elink API first
+            
+            # Try to find PMC version through elink API first  
             try:
                 link_url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi"
                 link_params = {
@@ -199,8 +302,13 @@ def get_pdf_urls(papers):
                             if linksetdb.get('dbto') == 'pmc':
                                 pmc_ids = linksetdb.get('links', [])
                                 if pmc_ids:
-                                    # Found PMC ID, use it
-                                    potential_urls.append(f"https://www.ncbi.nlm.nih.gov/pmc/articles/PMC{pmc_ids[0]}/pdf/")
+                                    # Found PMC ID, use multiple formats
+                                    pmc_id = f"PMC{pmc_ids[0]}"
+                                    potential_urls.extend([
+                                        f"https://www.ncbi.nlm.nih.gov/pmc/articles/{pmc_id}/pdf/",
+                                        f"https://www.ncbi.nlm.nih.gov/pmc/articles/{pmc_id}/pdf/{pmc_id}.pdf",
+                                        f"https://europepmc.org/articles/{pmc_id}?pdf=render"
+                                    ])
             except:
                 # Fallback if elink fails
                 pass
@@ -245,40 +353,126 @@ def download_pdf(pdf_urls, paper_id):
     return None
 
 
-def process_pdf_with_grobid(pdf_content, paper_id):
-    """Process PDF with GROBID to extract structured text"""
+def extract_text_from_pdf(pdf_content, paper_id):
+    """Extract structured text directly from PDF using Python libraries"""
     try:
-        logger.info(f"Processing PDF with GROBID for {paper_id}")
+        logger.info(f"Processing PDF for text extraction: {paper_id}")
         
-        # GROBID endpoint for processing full text
-        grobid_url = f"{GROBID_ENDPOINT}/api/processFulltextDocument"
+        # Use PyPDF2/pdfplumber for text extraction
+        import io
+        from io import BytesIO
         
-        files = {
-            'input': (f'{paper_id}.pdf', pdf_content, 'application/pdf')
+        # Try to import PDF processing libraries (fallback if not available)
+        try:
+            import PyPDF2
+            use_pypdf2 = True
+        except ImportError:
+            use_pypdf2 = False
+            logger.warning("PyPDF2 not available, using basic text extraction")
+        
+        try:
+            import pdfplumber
+            use_pdfplumber = True
+        except ImportError:
+            use_pdfplumber = False
+            logger.warning("pdfplumber not available")
+        
+        # Method 1: Try pdfplumber (best for structured extraction)
+        if use_pdfplumber:
+            try:
+                with pdfplumber.open(BytesIO(pdf_content)) as pdf:
+                    full_text = ""
+                    sections = {
+                        'abstract': '',
+                        'introduction': '',
+                        'methods': '',
+                        'results': '',
+                        'discussion': '',
+                        'conclusion': '',
+                        'references': ''
+                    }
+                    
+                    for page_num, page in enumerate(pdf.pages):
+                        page_text = page.extract_text()
+                        if page_text:
+                            full_text += page_text + "\n"
+                            
+                            # Try to identify sections based on common headers
+                            page_lower = page_text.lower()
+                            if 'abstract' in page_lower and not sections['abstract']:
+                                sections['abstract'] = page_text[:500]  # First 500 chars
+                            elif any(word in page_lower for word in ['introduction', 'background']) and not sections['introduction']:
+                                sections['introduction'] = page_text[:500]
+                            elif any(word in page_lower for word in ['method', 'material']) and not sections['methods']:
+                                sections['methods'] = page_text[:500]
+                            elif 'result' in page_lower and not sections['results']:
+                                sections['results'] = page_text[:500]
+                            elif 'discussion' in page_lower and not sections['discussion']:
+                                sections['discussion'] = page_text[:500]
+                            elif 'conclusion' in page_lower and not sections['conclusion']:
+                                sections['conclusion'] = page_text[:500]
+                            elif 'reference' in page_lower and not sections['references']:
+                                sections['references'] = page_text[:500]
+                    
+                    logger.info(f"Successfully extracted {len(full_text)} chars using pdfplumber for {paper_id}")
+                    return {
+                        'full_text': full_text.strip(),
+                        'sections': sections,
+                        'extraction_method': 'pdfplumber',
+                        'page_count': len(pdf.pages)
+                    }
+                    
+            except Exception as e:
+                logger.warning(f"pdfplumber extraction failed for {paper_id}: {str(e)}")
+        
+        # Method 2: Fallback to PyPDF2
+        if use_pypdf2:
+            try:
+                pdf_reader = PyPDF2.PdfReader(BytesIO(pdf_content))
+                full_text = ""
+                
+                for page_num, page in enumerate(pdf_reader.pages):
+                    try:
+                        page_text = page.extract_text()
+                        if page_text:
+                            full_text += page_text + "\n"
+                    except Exception as e:
+                        logger.warning(f"Failed to extract page {page_num} for {paper_id}: {str(e)}")
+                
+                # Basic section detection
+                sections = {'note': 'Basic text extraction - sections not parsed'}
+                full_text_lower = full_text.lower()
+                
+                # Try to find abstract
+                if 'abstract' in full_text_lower:
+                    abstract_start = full_text_lower.find('abstract')
+                    abstract_end = full_text_lower.find('introduction', abstract_start)
+                    if abstract_end == -1:
+                        abstract_end = abstract_start + 1000
+                    sections['abstract'] = full_text[abstract_start:abstract_end][:500]
+                
+                logger.info(f"Successfully extracted {len(full_text)} chars using PyPDF2 for {paper_id}")
+                return {
+                    'full_text': full_text.strip(),
+                    'sections': sections,
+                    'extraction_method': 'PyPDF2',
+                    'page_count': len(pdf_reader.pages)
+                }
+                
+            except Exception as e:
+                logger.warning(f"PyPDF2 extraction failed for {paper_id}: {str(e)}")
+        
+        # Method 3: Basic fallback 
+        logger.warning(f"All PDF extraction methods failed for {paper_id}, using basic metadata")
+        return {
+            'full_text': f"PDF file ({len(pdf_content)} bytes) - text extraction failed",
+            'sections': {'error': 'PDF text extraction libraries not available'},
+            'extraction_method': 'fallback',
+            'pdf_size': len(pdf_content)
         }
-        
-        data = {
-            'generateIDs': '1',
-            'consolidateHeader': '1',
-            'consolidateCitations': '1',
-            'includeRawAffiliations': '1',
-            'includeRawCitations': '1',
-            'segmentSentences': '1'
-        }
-        
-        response = requests.post(grobid_url, files=files, data=data, timeout=120)
-        
-        if response.status_code == 200:
-            # GROBID returns TEI-XML, we'll store it for later processing
-            tei_xml = response.text
-            logger.info(f"Successfully processed PDF for {paper_id}, got {len(tei_xml)} chars of TEI-XML")
-            return tei_xml
-        else:
-            logger.error(f"GROBID processing failed for {paper_id}: {response.status_code}")
-            return None
             
     except Exception as e:
-        logger.error(f"Error processing PDF with GROBID for {paper_id}: {str(e)}")
+        logger.error(f"Error processing PDF for {paper_id}: {str(e)}")
         return None
 
 
@@ -430,36 +624,20 @@ def process_papers_for_full_text(papers, source_name, max_pdfs=10):
                 failed_count += 1
                 continue
             
-            # Check if GROBID is available (for now, skip GROBID if not configured)
-            if GROBID_ENDPOINT and GROBID_ENDPOINT != 'http://grobid.harness.internal:8070':
-                # Process with GROBID
-                tei_xml = process_pdf_with_grobid(pdf_content, paper_id)
-                if tei_xml:
-                    full_text_data = extract_text_from_tei(tei_xml)
-                    if full_text_data:
-                        success = save_full_text_to_s3(paper_id, paper_metadata, full_text_data, source_name)
-                        if success:
-                            processed_count += 1
-                        else:
-                            failed_count += 1
-                    else:
-                        failed_count += 1
-                else:
-                    failed_count += 1
-            else:
-                # For now, just save the PDF info without GROBID processing
-                # We'll enhance this to use basic text extraction later
-                logger.info(f"GROBID not available, saving PDF metadata for {paper_id}")
-                full_text_data = {
-                    'full_text': f"PDF downloaded for {paper_id} ({len(pdf_content)} bytes)",
-                    'sections': {'note': 'PDF downloaded but not processed with GROBID'},
-                    'pdf_size': len(pdf_content)
-                }
+            # Extract text directly from PDF using Python libraries
+            full_text_data = extract_text_from_pdf(pdf_content, paper_id)
+            if full_text_data:
+                # Save the extracted text to S3
                 success = save_full_text_to_s3(paper_id, paper_metadata, full_text_data, source_name)
                 if success:
                     processed_count += 1
+                    logger.info(f"Successfully processed and saved {paper_id} using {full_text_data.get('extraction_method', 'unknown')} method")
                 else:
                     failed_count += 1
+                    logger.error(f"Failed to save extracted text for {paper_id}")
+            else:
+                failed_count += 1
+                logger.error(f"Failed to extract text from PDF for {paper_id}")
             
             # Small delay to be respectful to servers
             time.sleep(1)
@@ -489,10 +667,24 @@ def handler(event, context):
             logger.info("Starting manual paper crawling...")
             
             # Crawl from different sources
-            sources = event.get('sources', ['pubmed', 'europe_pmc'])
+            sources = event.get('sources', ['pmc', 'europe_pmc'])
             
+            if 'pmc' in sources:
+                pmc_papers = crawl_pmc_papers(max_papers=event.get('max_papers', 1000))
+                if pmc_papers:
+                    save_papers_to_s3(pmc_papers, 'pmc')
+                    results['crawled_papers'] += len(pmc_papers)
+                    
+                    # Process PDFs if requested
+                    if event.get('process_pdfs', False):
+                        max_pdfs = event.get('max_pdfs', 25)  # Higher default for PMC since they're open access
+                        processed, failed = process_papers_for_full_text(pmc_papers, 'pmc', max_pdfs)
+                        results['processed_documents'] += processed
+                        results['errors'].extend([f"Failed to process {failed} PDFs from PMC"] if failed > 0 else [])
+            
+            # Keep PubMed as backup option
             if 'pubmed' in sources:
-                pubmed_papers = crawl_pubmed_papers(max_papers=event.get('max_papers', 50))
+                pubmed_papers = crawl_pubmed_papers(max_papers=event.get('max_papers', 1000))
                 if pubmed_papers:
                     save_papers_to_s3(pubmed_papers, 'pubmed')
                     results['crawled_papers'] += len(pubmed_papers)
@@ -505,7 +697,7 @@ def handler(event, context):
                         results['errors'].extend([f"Failed to process {failed} PDFs from PubMed"] if failed > 0 else [])
             
             if 'europe_pmc' in sources:
-                emc_papers = crawl_europe_pmc_papers(max_papers=event.get('max_papers', 50))
+                emc_papers = crawl_europe_pmc_papers(max_papers=event.get('max_papers', 1000))
                 if emc_papers:
                     save_papers_to_s3(emc_papers, 'europe_pmc')
                     results['crawled_papers'] += len(emc_papers)
@@ -522,12 +714,12 @@ def handler(event, context):
             logger.info("Starting scheduled paper crawling...")
             
             # Daily crawl - get papers from last 24 hours
-            pubmed_papers = crawl_pubmed_papers(max_papers=100)
-            if pubmed_papers:
-                save_papers_to_s3(pubmed_papers, 'pubmed')
-                results['crawled_papers'] += len(pubmed_papers)
+            pmc_papers = crawl_pmc_papers(max_papers=200)
+            if pmc_papers:
+                save_papers_to_s3(pmc_papers, 'pmc')
+                results['crawled_papers'] += len(pmc_papers)
             
-            emc_papers = crawl_europe_pmc_papers(max_papers=50)
+            emc_papers = crawl_europe_pmc_papers(max_papers=100)
             if emc_papers:
                 save_papers_to_s3(emc_papers, 'europe_pmc')
                 results['crawled_papers'] += len(emc_papers)
@@ -575,10 +767,10 @@ if __name__ == "__main__":
     test_event = {
         'action': 'crawl',
         'test': True,
-        'sources': ['pubmed', 'europe_pmc'],
+        'sources': ['pmc', 'europe_pmc'],
         'max_papers': 10,
         'process_pdfs': True,
-        'max_pdfs': 3
+        'max_pdfs': 5
     }
     
     result = handler(test_event, None)

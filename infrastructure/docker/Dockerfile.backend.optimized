@@ -6,7 +6,7 @@ ARG PYTHON_VERSION=3.12
 ARG POETRY_VERSION=1.8.3
 
 # Base stage for common dependencies
-FROM python:${PYTHON_VERSION}-slim as python-base
+FROM public.ecr.aws/docker/library/python:${PYTHON_VERSION}-slim as python-base
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
