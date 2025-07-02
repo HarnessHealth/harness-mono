@@ -9,7 +9,7 @@ from fastapi import HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from datetime import datetime, timezone
 
-from backend.core.config import settings
+from backend.api.config import settings
 from backend.models.user import User, UserRole
 
 

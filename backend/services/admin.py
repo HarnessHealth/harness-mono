@@ -14,7 +14,7 @@ import aiohttp
 from sqlalchemy import select, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.core.database import get_db
+from backend.models.database import get_db
 from backend.api.config import settings
 from backend.models.admin import (
     ModelInfo, ModelStatus, ModelDeployRequest, PaperStats, 
