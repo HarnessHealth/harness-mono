@@ -32,7 +32,12 @@
         "events:*",
         "elasticache:*",
         "route53:*",
-        "acm:*"
+        "acm:*",
+        "codebuild:*",
+        "sns:*",
+        "ce:*",
+        "budgets:*",
+        "cloudfront:*"
       ],
       "Resource": "*"
     },

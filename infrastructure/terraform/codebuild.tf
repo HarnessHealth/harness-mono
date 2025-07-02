@@ -12,6 +12,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "codebuild_cache" {
     id     = "expire-old-cache"
     status = "Enabled"
 
+    filter {}
+
     expiration {
       days = 7
     }
@@ -121,7 +123,7 @@ resource "aws_codebuild_project" "backend" {
 
     environment_variable {
       name  = "ECR_REPOSITORY_URI"
-      value = aws_ecr_repository.harness.repository_url
+      value = aws_ecr_repository.api.repository_url
     }
 
     environment_variable {
@@ -182,7 +184,7 @@ resource "aws_codebuild_project" "lambda" {
 
     environment_variable {
       name  = "ECR_REPOSITORY_URI"
-      value = aws_ecr_repository.harness.repository_url
+      value = aws_ecr_repository.api.repository_url
     }
   }
 

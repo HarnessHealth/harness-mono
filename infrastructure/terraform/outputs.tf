@@ -45,6 +45,22 @@ output "sagemaker_domain_id" {
   value       = aws_sagemaker_domain.harness.id
 }
 
+# Admin Frontend Infrastructure
+output "admin_frontend_bucket" {
+  description = "S3 bucket name for admin frontend"
+  value       = aws_s3_bucket.admin_frontend.bucket
+}
+
+output "admin_cloudfront_distribution_id" {
+  description = "CloudFront distribution ID for admin frontend"
+  value       = aws_cloudfront_distribution.admin_frontend.id
+}
+
+output "admin_frontend_url" {
+  description = "Admin frontend URL"
+  value       = "https://admin.harness.health"
+}
+
 output "gpu_launch_template_id" {
   description = "GPU training launch template ID"
   value       = aws_launch_template.gpu_training.id
