@@ -56,3 +56,9 @@ variable "wandb_api_key" {
   default     = ""
   sensitive   = true
 }
+
+variable "domain_name" {
+  description = "Domain name for the application"
+  type        = string
+  default     = "harness.health"
+}

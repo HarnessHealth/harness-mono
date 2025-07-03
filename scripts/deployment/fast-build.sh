@@ -55,23 +55,59 @@ ecr_login() {
         docker login --username AWS --password-stdin $ECR_REPO
 }
 
+# Function to create optimized source archive based on build type
+create_source_archive() {
+    local build_type=$1
+    local temp_dir=$2
+    local temp_file="$temp_dir/source.zip"
+    
+    cd "$PROJECT_ROOT"
+    
+    case $build_type in
+        backend)
+            echo -e "${YELLOW}Creating backend source archive (full repository)...${NC}"
+            # Backend needs the full repository for multi-component builds
+            git archive --format=zip HEAD > $temp_file
+            ;;
+        lambda)
+            echo -e "${YELLOW}Creating optimized lambda source archive...${NC}"
+            # Lambda only needs specific directories, significantly reducing size
+            git archive --format=zip HEAD \
+                data-pipeline/lambdas/ \
+                infrastructure/docker/ \
+                infrastructure/terraform/buildspecs/lambda-buildspec.yml \
+                pyproject.toml \
+                poetry.lock \
+                README.md \
+                > $temp_file
+            ;;
+        *)
+            echo -e "${RED}Unknown build type: $build_type${NC}"
+            exit 1
+            ;;
+    esac
+    
+    # Show archive size for comparison
+    ARCHIVE_SIZE=$(du -sh $temp_file | cut -f1)
+    echo -e "${GREEN}Created $build_type source archive: $ARCHIVE_SIZE${NC}"
+}
+
 # Function to build with CodeBuild
 build_with_codebuild() {
     local project_name=$1
+    local build_type=$2
     
-    echo -e "${YELLOW}Starting CodeBuild project: $project_name${NC}"
+    echo -e "${YELLOW}Starting CodeBuild project: $project_name (${build_type} build)${NC}"
     
-    # Create source archive as ZIP (CodeBuild expects ZIP for S3 source)
+    # Create optimized source archive
     TEMP_DIR=$(mktemp -d)
     TEMP_FILE="$TEMP_DIR/source.zip"
-    cd "$PROJECT_ROOT"
     
-    echo -e "${YELLOW}Creating source archive...${NC}"
-    git archive --format=zip HEAD > $TEMP_FILE
+    create_source_archive $build_type $TEMP_DIR
     
-    # Upload to S3 at the expected location
+    # Upload to S3 with build-type-specific path for better cache separation
     SOURCE_BUCKET=$(aws s3api list-buckets --query "Buckets[?contains(Name, 'codebuild-cache')].Name" --output text --profile $AWS_PROFILE)
-    aws s3 cp $TEMP_FILE s3://$SOURCE_BUCKET/source/source.zip --profile $AWS_PROFILE
+    aws s3 cp $TEMP_FILE s3://$SOURCE_BUCKET/source/$build_type-source.zip --profile $AWS_PROFILE
     
     echo -e "${YELLOW}Source uploaded, starting build...${NC}"
     
@@ -171,10 +207,10 @@ main() {
         
         case $COMPONENT in
             backend|all)
-                build_with_codebuild $BACKEND_PROJECT
+                build_with_codebuild $BACKEND_PROJECT "backend"
                 ;;
             lambda)
-                build_with_codebuild $LAMBDA_PROJECT
+                build_with_codebuild $LAMBDA_PROJECT "lambda"
                 ;;
         esac
     else

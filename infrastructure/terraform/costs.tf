@@ -159,7 +159,7 @@ resource "aws_ce_anomaly_monitor" "harness" {
 
   monitor_specification = jsonencode({
     Tags = {
-      Key    = "Project"
+      Key    = "user:Project"
       Values = ["Harness"]
     }
   })

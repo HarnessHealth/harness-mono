@@ -102,8 +102,12 @@ COPY --from=builder-base --chown=harness:harness $PYSETUP_PATH $PYSETUP_PATH
 
 WORKDIR /app
 
-# Copy application code
+# Copy application code and project config
 COPY --chown=harness:harness backend/ ./backend/
+COPY --chown=harness:harness pyproject.toml ./
+
+# Install project in editable mode
+RUN poetry install --only-root
 
 # Switch to non-root user
 USER harness

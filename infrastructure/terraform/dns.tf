@@ -85,18 +85,7 @@ resource "aws_route53_record" "api" {
   }
 }
 
-# Admin subdomain (for admin frontend)
-resource "aws_route53_record" "admin" {
-  zone_id = aws_route53_zone.harness.zone_id
-  name    = "admin.harness.health"
-  type    = "A"
-
-  alias {
-    name                   = aws_lb.main.dns_name
-    zone_id                = aws_lb.main.zone_id
-    evaluate_target_health = true
-  }
-}
+# Admin subdomain is configured in admin_frontend.tf to point to CloudFront
 
 # Output nameservers for domain registrar
 output "nameservers" {
