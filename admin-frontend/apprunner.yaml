@@ -1,5 +1,5 @@
 version: 1.0
-runtime: nodejs20
+runtime: nodejs18
 build:
   commands:
     build:
@@ -9,7 +9,7 @@ build:
       - npm run build
       - echo "Build completed successfully"
 run:
-  runtime-version: '20'
+  runtime-version: '18'
   command: cd admin-frontend && npm start
   network:
     port: 8080

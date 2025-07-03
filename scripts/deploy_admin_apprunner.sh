@@ -8,7 +8,7 @@ SERVICE_NAME="harness-admin-development"
 REGION="us-east-1"
 GITHUB_REPO="https://github.com/HarnessHealth/harness-mono"
 GITHUB_BRANCH="master"
-RUNTIME="NODEJS_20"
+RUNTIME="NODEJS_18"
 BUILD_CMD="cd admin-frontend && npm ci && npm run build"
 START_CMD="cd admin-frontend && npm start"
 
