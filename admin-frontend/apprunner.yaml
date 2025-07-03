@@ -5,7 +5,7 @@ build:
     build:
       - echo "Installing dependencies and building admin frontend"
       - cd admin-frontend
-      - npm ci
+      - npm ci --only=production
       - npm run build
       - echo "Build completed successfully"
 run:
