@@ -50,6 +50,12 @@ COPY pyproject.toml poetry.lock* ./
 RUN --mount=type=cache,target=/root/.cache \
     poetry install --only main --no-root
 
+# Copy backend source code for package installation
+COPY backend/ ./backend/
+
+# Install the backend package in editable mode
+RUN poetry install --only-root
+
 # Development stage
 FROM python-base as development
 
@@ -102,12 +108,8 @@ COPY --from=builder-base --chown=harness:harness $PYSETUP_PATH $PYSETUP_PATH
 
 WORKDIR /app
 
-# Copy application code and project config
+# Copy application code
 COPY --chown=harness:harness backend/ ./backend/
-COPY --chown=harness:harness pyproject.toml ./
-
-# Install project in editable mode
-RUN poetry install --only-root
 
 # Switch to non-root user
 USER harness
