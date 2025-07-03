@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Harness - Veterinary Clinical AI Platform with Ask and Diagnose Services"
 authors = ["Harness Team"]
 readme = "README.md"
+packages = [{include = "backend"}]
 
 [tool.poetry.dependencies]
 python = ">=3.11,<3.13"
