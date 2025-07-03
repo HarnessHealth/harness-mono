@@ -1,0 +1,48 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo "=== Fresh GitHub Clone Build Process ==="
+      - echo "Logging in to Amazon ECR..."
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - REPOSITORY_URI=$ECR_REPOSITORY_URI
+      - echo "Cloning fresh code from GitHub..."
+      - rm -rf /tmp/harness-fresh
+      - git clone https://$GITHUB_TOKEN@github.com/HarnessHealth/harness-mono.git /tmp/harness-fresh
+      - cd /tmp/harness-fresh
+      - COMMIT_HASH=$(git rev-parse --short HEAD)
+      - IMAGE_TAG=$COMMIT_HASH
+      - echo "Using fresh code from commit $COMMIT_HASH"
+      - echo "Build started on $(date)"
+
+  build:
+    commands:
+      - echo "Building Docker image from fresh GitHub clone..."
+      - echo "Current directory $(pwd)"
+      - echo "Directory contents"
+      - ls -la
+      - echo "Checking for required files"
+      - ls -la infrastructure/docker/Dockerfile.backend.optimized
+      - ls -la pyproject.toml
+      - ls -la backend/
+      - echo "Git status in fresh clone"
+      - git status --porcelain
+      - git log --oneline -3
+      - docker buildx create --use --driver docker-container
+      - docker buildx build --platform linux/amd64 --cache-from type=registry,ref=$REPOSITORY_URI:buildcache --cache-to type=registry,ref=$REPOSITORY_URI:buildcache,mode=max --build-arg HUGGINGFACE_ACCESS_TOKEN=$HUGGINGFACE_ACCESS_TOKEN --tag $REPOSITORY_URI:$IMAGE_TAG --tag $REPOSITORY_URI:latest --target production --push -f infrastructure/docker/Dockerfile.backend.optimized .
+
+  post_build:
+    commands:
+      - echo "Build completed on $(date)"
+      - echo "Pushed $REPOSITORY_URI:$IMAGE_TAG"
+      - echo "Updating ECS service..."
+      - CLUSTER_NAME="harness-main-development"
+      - SERVICE_NAME="harness-api-development"
+      - aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME --force-new-deployment
+      - echo "ECS service update completed"
+
+cache:
+  paths:
+    - '/root/.cache/pip/**/*'
+    - '/root/.cache/poetry/**/*'

@@ -1,0 +1,5 @@
+# SageMaker deployment requirements
+sagemaker>=2.220.0
+boto3>=1.34.0
+huggingface-hub>=0.24.0
+transformers>=4.44.0

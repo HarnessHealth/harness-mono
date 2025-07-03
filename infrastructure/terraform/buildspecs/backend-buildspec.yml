@@ -3,43 +3,39 @@ version: 0.2
 phases:
   pre_build:
     commands:
+      - echo "=== Fresh GitHub Clone Build Process ==="
       - echo Logging in to Amazon ECR...
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
       - REPOSITORY_URI=$ECR_REPOSITORY_URI
-      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - echo "Cloning fresh code from GitHub..."
+      - rm -rf /tmp/harness-fresh
+      - git clone https://$GITHUB_TOKEN@github.com/HarnessHealth/harness-mono.git /tmp/harness-fresh
+      - cd /tmp/harness-fresh
+      - COMMIT_HASH=$(git rev-parse --short HEAD)
       - IMAGE_TAG=${COMMIT_HASH:=latest}
+      - echo "Using fresh code from commit: $COMMIT_HASH"
       - echo Build started on `date`
       
   build:
     commands:
-      - echo Building the Docker image...
-      - echo "Debug - Current directory contents:"
+      - echo "Building Docker image from fresh GitHub clone..."
+      - echo "Current directory: $(pwd)"
+      - echo "Directory contents:"
       - ls -la
-      - echo "Debug - Working directory:"
-      - pwd
-      - echo "Debug - CODEBUILD_SRC_DIR contents:"
-      - ls -la $CODEBUILD_SRC_DIR || echo "CODEBUILD_SRC_DIR not accessible"
-      - echo "Debug - Environment variables:"
-      - env | grep CODEBUILD
-      - echo "Debug - Checking if we need to change to source directory:"
-      - |
-        if [ "$PWD" != "$CODEBUILD_SRC_DIR" ]; then
-          echo "Changing to CODEBUILD_SRC_DIR: $CODEBUILD_SRC_DIR"
-          cd $CODEBUILD_SRC_DIR
-          echo "New working directory: $(pwd)"
-          echo "Contents after cd:"
-          ls -la
-        fi
-      - echo "Debug - Looking for Dockerfile:"
-      - find . -name "*Dockerfile*" -type f
-      - echo "Debug - Final check before build:"
-      - ls -la infrastructure/docker/ || echo "infrastructure/docker/ not found"
+      - echo "Checking for required files:"
+      - ls -la infrastructure/docker/Dockerfile.backend.optimized
+      - ls -la pyproject.toml
+      - ls -la backend/
+      - echo "Git status in fresh clone:"
+      - git status --porcelain
+      - git log --oneline -3
       - |
         docker buildx create --use --driver docker-container
         docker buildx build \
           --platform linux/amd64 \
           --cache-from type=registry,ref=$REPOSITORY_URI:buildcache \
           --cache-to type=registry,ref=$REPOSITORY_URI:buildcache,mode=max \
+          --build-arg HUGGINGFACE_ACCESS_TOKEN=$HUGGINGFACE_ACCESS_TOKEN \
           --tag $REPOSITORY_URI:$IMAGE_TAG \
           --tag $REPOSITORY_URI:latest \
           --target production \

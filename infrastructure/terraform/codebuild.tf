@@ -142,15 +142,22 @@ resource "aws_codebuild_project" "backend" {
       name  = "IMAGE_TAG"
       value = "latest"
     }
+
+    environment_variable {
+      name  = "HUGGINGFACE_ACCESS_TOKEN"
+      value = var.huggingface_access_token
+      type  = "PLAINTEXT"
+    }
+
+    environment_variable {
+      name  = "GITHUB_TOKEN"
+      value = "ghp_your_token_here"  # Replace with actual token
+      type  = "PLAINTEXT"
+    }
   }
 
   source {
-    type            = "GITHUB"
-    location        = "https://github.com/HarnessHealth/harness-mono.git"
-    git_clone_depth = 1
-    git_submodules_config {
-      fetch_submodules = false
-    }
+    type      = "NO_SOURCE"
     buildspec = file("${path.module}/buildspecs/backend-buildspec.yml")
   }
 
@@ -166,23 +173,7 @@ resource "aws_codebuild_project" "backend" {
   }
 }
 
-# GitHub webhook for backend builds
-resource "aws_codebuild_webhook" "backend" {
-  project_name = aws_codebuild_project.backend.name
-  build_type   = "BUILD"
-
-  filter_group {
-    filter {
-      type    = "EVENT"
-      pattern = "PUSH"
-    }
-
-    filter {
-      type    = "HEAD_REF"
-      pattern = "refs/heads/master"
-    }
-  }
-}
+# Note: Webhook removed - using manual git clone in buildspec instead
 
 # CodeBuild project for Lambda functions
 resource "aws_codebuild_project" "lambda" {

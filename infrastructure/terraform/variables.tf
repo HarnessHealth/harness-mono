@@ -62,3 +62,10 @@ variable "domain_name" {
   type        = string
   default     = "harness.health"
 }
+
+variable "huggingface_access_token" {
+  description = "HuggingFace access token for model access"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
