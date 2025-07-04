@@ -1,16 +1,18 @@
 version: 1.0
-runtime: nodejs14
+runtime: nodejs22
 build:
   commands:
     build:
       - echo "Installing dependencies and building admin frontend"
-      - npm install express
+      - npm ci
+      - npm run build
       - echo "Build completed successfully"
 run:
-  runtime-version: '14'
+  runtime-version: 22.14.0
   command: npm start
   network:
     port: 8080
+    env: PORT
   env:
     - name: PORT
       value: "8080"
