@@ -4,8 +4,13 @@ build:
   commands:
     build:
       - echo "Installing dependencies with Poetry"
+      - python --version
+      - pip --version
       - pip install --upgrade pip
       - pip install poetry
+      - poetry --version
+      - ls -l
+      - cat pyproject.toml
       - poetry config virtualenvs.create false
       - poetry install --only main
       - echo "Build completed successfully"
