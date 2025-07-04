@@ -3,14 +3,13 @@ runtime: python3
 build:
   commands:
     build:
-      - echo "Installing dependencies with Poetry"
-      - pip install poetry==1.7.1
-      - poetry config virtualenvs.create false
-      - poetry install --only=main --no-dev
+      - echo "Installing dependencies with pip"
+      - pip install --upgrade pip
+      - pip install fastapi==0.104.1 uvicorn[standard]==0.24.0 pydantic==2.5.0
       - echo "Build completed successfully"
 run:
   runtime-version: '3.8'
-  command: PYTHONPATH=/opt/app poetry run uvicorn backend.api.main:app --host 0.0.0.0 --port 8000
+  command: PYTHONPATH=/opt/app python -m uvicorn backend.api.main:app --host 0.0.0.0 --port 8000
   network:
     port: 8000
   env:

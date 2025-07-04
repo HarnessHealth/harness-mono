@@ -1,16 +1,14 @@
 version: 1.0
-runtime: nodejs18
+runtime: nodejs16
 build:
   commands:
     build:
       - echo "Installing dependencies and building admin frontend"
-      - cd admin-frontend
-      - npm ci --only=production
-      - npm run build
+      - npm install express
       - echo "Build completed successfully"
 run:
   runtime-version: '16'
-  command: cd admin-frontend && npm start
+  command: npm start
   network:
     port: 8080
   env:
