@@ -2,19 +2,22 @@ version: 1.0
 runtime: python3
 build:
   commands:
-    build:
-      - echo "Installing dependencies with pip"
+    build:        
+      - echo "Installing dependencies with Poetry"
       - pip install --upgrade pip
       - pip install poetry
       - poetry config virtualenvs.create false
       - poetry install --only=main --no-dev
       - echo "Build completed successfully"
+  env:
+    - name: PYTHONPATH
+      value: "/opt/app"
 run:
-  runtime-version: 3.11.0
+  runtime-version: 3.11.7
   command: poetry run uvicorn backend.api.main:app --host 0.0.0.0 --port 8000
-  network:
+  network: 
     port: 8000
-    env: PORT
+    env: PORT  
   env:
     - name: PORT
       value: "8000"
