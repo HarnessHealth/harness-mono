@@ -8,9 +8,7 @@ SERVICE_NAME="harness-api-development"
 REGION="us-east-1"
 GITHUB_REPO="https://github.com/HarnessHealth/harness-mono"
 GITHUB_BRANCH="master"
-RUNTIME="PYTHON_3"
-BUILD_CMD="pip install poetry && poetry config virtualenvs.create false && poetry install --only=main --no-dev"
-START_CMD="poetry run uvicorn backend.api.main:app --host 0.0.0.0 --port 8000"
+# Configuration comes from apprunner.yaml in repository
 
 ############################
 # 2---CREATE / REUSE CONNECTION
@@ -47,16 +45,7 @@ cat > source-config.json <<EOF
       "Value": "${GITHUB_BRANCH}"
     },
     "CodeConfiguration": {
-      "ConfigurationSource": "API",
-      "CodeConfigurationValues": {
-        "Runtime": "${RUNTIME}",
-        "BuildCommand": "${BUILD_CMD}",
-        "StartCommand": "${START_CMD}",
-        "RuntimeEnvironmentVariables": {
-          "PORT": "8000",
-          "PYTHONPATH": "/opt/app"
-        }
-      }
+      "ConfigurationSource": "REPOSITORY"
     }
   },
   "AuthenticationConfiguration": {
@@ -90,7 +79,8 @@ aws apprunner create-service \
     --tags Key=Name,Value="${SERVICE_NAME}" Key=Environment,Value=development Key=Project,Value=Harness \
     --region "${REGION}"
 
-echo "🎉  Initial deployment started. Watch your service in the App Runner console."
+echo "🎉  Initial deployment started using apprunner.yaml configuration."
+echo "    Build settings are defined in the repository's apprunner.yaml file."
 
 ############################
 # 5---GET SERVICE INFO
@@ -118,7 +108,8 @@ rm -f source-config.json
 echo "🎯 Next steps:"
 echo "1. Monitor deployment progress in AWS Console"
 echo "2. Test the API once deployment is complete"
-echo "3. Configure custom domain if needed"
+echo "3. Update apprunner.yaml for any build configuration changes"
+echo "4. Configure custom domain if needed"
 echo ""
 echo "🗑️  To delete the service later:"
 echo "   aws apprunner delete-service --service-arn $SERVICE_ARN --region $REGION"
