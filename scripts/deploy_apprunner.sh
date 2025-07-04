@@ -85,7 +85,7 @@ fi
 aws apprunner create-service \
     --service-name "${SERVICE_NAME}" \
     --source-configuration file://source-config.json \
-    --instance-configuration Cpu="0.25vCPU",Memory="0.5GB" \
+    --instance-configuration Cpu="0.25 vCPU",Memory="0.5 GB" \
     --health-check-configuration Protocol=HTTP,Path="/api/health",Interval=10,Timeout=5,HealthyThreshold=1,UnhealthyThreshold=5 \
     --tags Key=Name,Value="${SERVICE_NAME}" Key=Environment,Value=development Key=Project,Value=Harness \
     --region "${REGION}"
