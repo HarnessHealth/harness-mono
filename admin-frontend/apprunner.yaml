@@ -1,5 +1,5 @@
 version: 1.0
-runtime: nodejs16
+runtime: nodejs14
 build:
   commands:
     build:
@@ -7,7 +7,7 @@ build:
       - npm install express
       - echo "Build completed successfully"
 run:
-  runtime-version: '16'
+  runtime-version: '14'
   command: npm start
   network:
     port: 8080
