@@ -2,7 +2,7 @@
 # syntax=docker/dockerfile:1.4
 
 # Build arguments
-ARG PYTHON_VERSION=3.12
+ARG PYTHON_VERSION=3.11.12
 ARG POETRY_VERSION=1.8.3
 
 # Base stage for common dependencies

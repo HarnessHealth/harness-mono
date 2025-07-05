@@ -1,22 +1,24 @@
 """
 Harness API - Main FastAPI Application
 """
+
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import make_asgi_app
-# from strawberry.fastapi import GraphQLRouter
 
+# from strawberry.fastapi import GraphQLRouter
 from backend.api.config import settings
+
 # from backend.api.graphql.schema import schema
 from backend.api.middleware import (
-    RequestIDMiddleware,
     LoggingMiddleware,
     RateLimitMiddleware,
+    RequestIDMiddleware,
 )
-from backend.api.routers import health, ask, auth, admin
+from backend.api.routers import admin, ask, auth, health
 from backend.utils.logging import setup_logging
 
 

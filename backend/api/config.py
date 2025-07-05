@@ -1,7 +1,8 @@
 """
 Harness API Configuration
 """
-from typing import List, Optional
+
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,6 +13,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",  # Ignore extra environment variables
     )
 
     # Application
@@ -23,7 +25,7 @@ class Settings(BaseSettings):
 
     # API
     API_V1_PREFIX: str = "/api/v1"
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "https://harness.vet"]
+    CORS_ORIGINS: list[str] = ["http://localhost:3000", "https://harness.vet"]
 
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://harness:harness@localhost:5432/harness"
@@ -42,22 +44,26 @@ class Settings(BaseSettings):
 
     # AWS
     AWS_REGION: str = "us-east-1"
-    AWS_ACCESS_KEY_ID: Optional[str] = None
-    AWS_SECRET_ACCESS_KEY: Optional[str] = None
+    AWS_ACCESS_KEY_ID: str | None = None
+    AWS_SECRET_ACCESS_KEY: str | None = None
     AWS_ENVIRONMENT: str = "development"  # development, staging, production
     S3_BUCKET_NAME: str = "harness-veterinary-corpus"
     S3_MODELS_BUCKET: str = "harness-models"
-    S3_PAPERS_BUCKET: str = "harness-veterinary-corpus" if AWS_ENVIRONMENT == "production" else f"harness-veterinary-corpus-{AWS_ENVIRONMENT}"
+    S3_PAPERS_BUCKET: str = (
+        "harness-veterinary-corpus"
+        if AWS_ENVIRONMENT == "production"
+        else f"harness-veterinary-corpus-{AWS_ENVIRONMENT}"
+    )
 
     # Weaviate
     WEAVIATE_URL: str = "http://localhost:8080"
-    WEAVIATE_API_KEY: Optional[str] = None
+    WEAVIATE_API_KEY: str | None = None
 
     # Model Configuration
     EMBEDDING_MODEL: str = "text-embedding-3-small"  # OpenAI embeddings
     LLM_MODEL: str = "medgemma-27b-vet-it"
     INFERENCE_ENDPOINT: str = "http://localhost:8000"
-    OPENAI_API_KEY: Optional[str] = None
+    OPENAI_API_KEY: str | None = None
 
     # Rate Limiting
     RATE_LIMIT_PER_MINUTE: int = 60
@@ -65,7 +71,7 @@ class Settings(BaseSettings):
 
     # Monitoring
     PROMETHEUS_ENABLED: bool = True
-    SENTRY_DSN: Optional[str] = None
+    SENTRY_DSN: str | None = None
 
     # Ask Service
     ASK_MAX_CHUNKS: int = 40
@@ -75,14 +81,14 @@ class Settings(BaseSettings):
     # Celery
     CELERY_BROKER_URL: str = "redis://localhost:6379/1"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/2"
-    
+
     # Airflow
     AIRFLOW_URL: str = "http://localhost:8080"
-    
+
     # Paper Crawling
-    NCBI_API_KEY: Optional[str] = None
-    CROSSREF_EMAIL: Optional[str] = None
-    
+    NCBI_API_KEY: str | None = None
+    CROSSREF_EMAIL: str | None = None
+
     # MinIO/S3 Storage
     MINIO_ROOT_USER: str = "minioadmin"
     MINIO_ROOT_PASSWORD: str = "minioadmin"

@@ -1,5 +1,5 @@
 version: 1.0
-runtime: python3
+runtime: python3.11
 build:
   commands:
     build:
@@ -25,7 +25,7 @@ build:
     - name: PYTHONPATH
       value: "/opt/app"
 run:
-  runtime-version: 3.8.20
+  runtime-version: 3.11.12
   command: poetry run uvicorn backend.api.main:app --host 0.0.0.0 --port 8000
   network:
     port: 8000

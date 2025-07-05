@@ -7,7 +7,7 @@ readme = "README.md"
 packages = [{include = "backend"}]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.13"
+python = "^3.11.0"
 fastapi = "^0.111.0"
 uvicorn = {extras = ["standard"], version = "^0.30.1"}
 pydantic = "^2.8.0"
@@ -44,16 +44,16 @@ mypy = "^1.10.1"
 pre-commit = "^3.7.1"
 notebook = "^7.2.1"
 
-[tool.poetry.group.data-pipeline.dependencies]
-apache-airflow = "^2.9.3"
-apache-airflow-providers-amazon = "^8.25.0"
-apache-airflow-providers-celery = "^3.7.1"
-grobid-client-python = "^0.0.7"
-beautifulsoup4 = "^4.12.3"
-lxml = "^5.2.2"
-pypdf = "^4.2.0"
-langchain = "^0.2.7"
-langchain-community = "^0.2.7"
+# [tool.poetry.group.data-pipeline.dependencies]
+# apache-airflow = {version = "^2.9.3", python = "<3.13"}
+# apache-airflow-providers-amazon = "^8.25.0"
+# apache-airflow-providers-celery = "^3.7.1"
+# grobid-client-python = "^0.0.7"
+# beautifulsoup4 = "^4.12.3"
+# lxml = "^5.2.2"
+# pypdf = "^4.2.0"
+# langchain = "^0.2.7"
+# langchain-community = "^0.2.7"
 
 
 [build-system]
