@@ -54,9 +54,10 @@ class Settings(BaseSettings):
     WEAVIATE_API_KEY: Optional[str] = None
 
     # Model Configuration
-    EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
+    EMBEDDING_MODEL: str = "text-embedding-3-small"  # OpenAI embeddings
     LLM_MODEL: str = "medgemma-27b-vet-it"
     INFERENCE_ENDPOINT: str = "http://localhost:8000"
+    OPENAI_API_KEY: Optional[str] = None
 
     # Rate Limiting
     RATE_LIMIT_PER_MINUTE: int = 60
