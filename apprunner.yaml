@@ -13,7 +13,7 @@ build:
     - name: PYTHONPATH
       value: "/opt/app"
 run:
-  runtime-version: 3.11
+  runtime-version: 3.11.12
   pre-run:
     - pip3 install --upgrade pip
     - pip3 install poetry
