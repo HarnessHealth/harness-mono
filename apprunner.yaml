@@ -3,21 +3,9 @@ runtime: python311
 build:
   commands:
     build:
-      - set -x
-      - echo "Listing files in build directory"
-      - ls -l
-      - pwd
-      - echo "Python version:"
-      - python --version
-      - echo "Pip version:"
-      - pip --version
-      - echo "Installing Poetry"
-      - pip install poetry
+      - echo "Installing dependencies with Poetry"
+      - python3 --version
       - poetry --version
-      - echo "pyproject.toml contents:"
-      - cat pyproject.toml
-      - echo "poetry.lock exists?"
-      - ls -l poetry.lock
       - poetry config virtualenvs.create false
       - poetry install --only=main
       - echo "Build completed successfully"
@@ -25,7 +13,10 @@ build:
     - name: PYTHONPATH
       value: "/opt/app"
 run:
-  runtime-version: 3.11.12
+  runtime-version: 3.11
+  pre-run:
+    - pip3 install --upgrade pip
+    - pip3 install poetry
   command: poetry run uvicorn backend.api.main:app --host 0.0.0.0 --port 8000
   network:
     port: 8000
