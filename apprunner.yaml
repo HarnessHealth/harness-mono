@@ -5,6 +5,7 @@ build:
     build:
       - echo "Installing dependencies with Poetry"
       - python3 --version
+      - pip3 install poetry
       - poetry --version
       - poetry config virtualenvs.create false
       - poetry install --only=main
