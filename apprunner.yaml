@@ -9,6 +9,8 @@ build:
       - poetry --version
       - poetry config virtualenvs.create false
       - poetry install --only=main --no-root
+      - echo "Verifying installation"
+      - python3 -c "import uvicorn; print('uvicorn available')"
       - echo "Build completed successfully"
   env:
     - name: PYTHONPATH
@@ -16,7 +18,9 @@ build:
 run:
   runtime-version: 3.11.12
   pre-run:
+    - echo "Re-installing critical dependencies for runtime"
     - pip3 install --upgrade pip
+    - pip3 install uvicorn[standard]==0.30.1 fastapi==0.111.0 pydantic==2.8.0
   command: python3 -m uvicorn backend.api.main:app --host 0.0.0.0 --port 8000
   network:
     port: 8000
