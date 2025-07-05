@@ -5,12 +5,9 @@ build:
     build:
       - echo "Installing dependencies with Poetry"
       - python --version
-      - pip --version
       - pip install --upgrade pip
       - pip install poetry
       - poetry --version
-      - ls -l
-      - cat pyproject.toml
       - poetry config virtualenvs.create false
       - poetry install --only main
       - echo "Build completed successfully"
@@ -18,7 +15,7 @@ build:
     - name: PYTHONPATH
       value: "/opt/app"
 run:
-  runtime-version: 3.8.20
+  runtime-version: 3.9.16
   command: poetry run uvicorn backend.api.main:app --host 0.0.0.0 --port 8000
   network:
     port: 8000
