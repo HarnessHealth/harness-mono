@@ -8,7 +8,7 @@ build:
       - pip3 install poetry
       - poetry --version
       - poetry config virtualenvs.create false
-      - poetry install --only=main
+      - poetry install --only=main --no-root
       - echo "Build completed successfully"
   env:
     - name: PYTHONPATH
