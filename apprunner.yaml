@@ -17,7 +17,7 @@ run:
   runtime-version: 3.11.12
   pre-run:
     - pip3 install --upgrade pip
-  command: poetry run uvicorn backend.api.main:app --host 0.0.0.0 --port 8000
+  command: python3 -m uvicorn backend.api.main:app --host 0.0.0.0 --port 8000
   network:
     port: 8000
     env: PORT
